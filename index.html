@@ -57,7 +57,9 @@ td.act{white-space:nowrap;width:96px}
 td.act button{border:0;background:transparent;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px;line-height:0}
 td.act button:hover{background:var(--green-soft);color:var(--green-dark)}
 td.act button.del:hover,td.act button.del.ask{background:#fde4e3;color:var(--red)}
-td.act button svg{width:20px;height:20px}
+td.act button svg{width:22px;height:22px}
+td.act button.ed{color:var(--green)}
+td.act button.del{color:var(--red)}
 td .v{display:block;padding:10px 12px;font-weight:600;min-height:42px}
 tr.editing{background:var(--green-soft)}
 tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:8px;padding:8px 10px}
@@ -133,7 +135,7 @@ tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:
 <script>
 (function(){
   /* Pegá acá la URL de la aplicación web de Apps Script (termina en /exec) */
-  var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxCYA2GamQkcFQA8rM47Wbh4rTMClVuDs5CQCgd3BBKxvooQwtipEq16Ofs87-5pjmB/exec';
+  var APPS_SCRIPT_URL='';
   var TOKEN='';
 
   var COLS=['id','descripcion','cantidad','fecha','matricula','nombre_apellido'];
@@ -335,7 +337,7 @@ tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:
       });
       var ta=document.createElement('td');ta.className='act';
       var be=document.createElement('button');be.type='button';be.innerHTML=editing?ICON.ok:ICON.edit;
-      be.title=editing?'Guardar cambios':'Editar fila';be.setAttribute('aria-label',(editing?'Guardar cambios de la fila ':'Editar fila ')+(i+1));
+      be.className='ed';be.title=editing?'Guardar cambios':'Editar fila';be.setAttribute('aria-label',(editing?'Guardar cambios de la fila ':'Editar fila ')+(i+1));
       be.addEventListener('click',function(){editing?saveEdit(i):startEdit(i)});
       ta.appendChild(be);
       var bd=document.createElement('button');bd.type='button';bd.className='del';bd.innerHTML=ICON.del;
@@ -401,7 +403,15 @@ tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:
   /* ---------- micrófono ---------- */
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition,rec=null,listening=false,wantOn=false;
   function setMic(on){listening=on;$('micBtn').classList.toggle('on',on);$('micTxt').textContent=on?'Escuchando… tocá para parar':'Empezar a dictar'}
-  var noSpeech=0;
+  var noSpeech=0,lastText='',commitTimer=null,SILENCE_MS=600;
+  function clearCommit(){if(commitTimer){clearTimeout(commitTimer);commitTimer=null}lastText=''}
+  function commitEarly(){
+    var t=lastText;clearCommit();
+    if(!t||!wantOn)return;
+    $('live').textContent=t;
+    applyUtterance([t]);
+    try{rec.abort()}catch(e){}   /* corta esta frase y reinicia enseguida para el campo siguiente */
+  }
   function beginRecognition(){
     rec=new SR();rec.lang='es-AR';rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=5;
     rec.onstart=function(){say($('micMsg'),'Micrófono encendido. Ya podés hablar.','ok')};
@@ -411,11 +421,15 @@ tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:
       for(var i=ev.resultIndex;i<ev.results.length;i++){
         var res=ev.results[i];
         if(res.isFinal){
+          clearCommit();
           var alts=[];for(var k=0;k<res.length;k++)alts.push(res[k].transcript);
           $('live').textContent=alts[0];applyUtterance(alts);
         }else interim+=res[0].transcript;
       }
-      if(interim)$('live').textContent=interim;
+      if(interim){
+        $('live').textContent=interim;
+        if(interim!==lastText){lastText=interim;clearTimeout(commitTimer);commitTimer=setTimeout(commitEarly,SILENCE_MS)}
+      }
     };
     rec.onerror=function(ev){
       var e=ev.error;
@@ -426,7 +440,8 @@ tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:
       else if(e!=='aborted')say($('micMsg'),'Error de dictado: '+e,'warn');
     };
     rec.onend=function(){
-      if(wantOn){setTimeout(function(){if(wantOn){try{rec.start()}catch(x){beginRecognition()}}},250)}
+      clearCommit();
+      if(wantOn){setTimeout(function(){if(wantOn){try{rec.start()}catch(x){beginRecognition()}}},40)}
       else setMic(false);
     };
     try{rec.start()}catch(x){wantOn=false;setMic(false);say($('micMsg'),'No se pudo iniciar el dictado: '+x.message,'bad')}
@@ -447,7 +462,7 @@ tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:
       });
     }else beginRecognition();
   }
-  function stopMic(){wantOn=false;try{rec&&rec.stop()}catch(e){}setMic(false)}
+  function stopMic(){wantOn=false;clearCommit();try{rec&&rec.stop()}catch(e){}setMic(false)}
   $('micBtn').addEventListener('click',function(){listening?stopMic():startMic()});
 
   /* ---------- enviar y guardar en Google Sheets ---------- */
