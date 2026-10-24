@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>eFarm</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Layout: a single column workbench. Dictation bar on top, draft row, live ledger table, send bar at the bottom. */
+:root{
+  --bg:#f6f7f5; --panel:#ffffff; --ink:#1b2421; --muted:#5f6b66; --line:#d9dfdb;
+  --accent:#0f6b57; --accent-ink:#ffffff; --warn:#a4561a; --bad:#b3261e; --ok:#1d7a3a; --rec:#c62828;
+  --font:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111715; --panel:#18211e; --ink:#e7eee9; --muted:#9aa8a1; --line:#2b3732;
+  --accent:#43b89c; --accent-ink:#06211a; --warn:#e0a064; --bad:#f08a82; --ok:#6fd08b; --rec:#ff6b6b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111715; --panel:#18211e; --ink:#e7eee9; --muted:#9aa8a1; --line:#2b3732;
+  --accent:#43b89c; --accent-ink:#06211a; --warn:#e0a064; --bad:#f08a82; --ok:#6fd08b; --rec:#ff6b6b; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;
+  padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header h1{font-size:22px;font-weight:600;margin:0;text-wrap:balance}
+header p{margin:4px 0 0;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:600}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 10px;min-width:0;width:100%}
+input.cur{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button{font:inherit;font-weight:500;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 14px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.mic{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mic button{min-width:150px}
+.mic.on button{background:var(--rec);border-color:var(--rec);color:#fff}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:6px}
+.mic.on .dot{background:#fff;animation:p 1s infinite}
+@keyframes p{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.mic.on .dot{animation:none}}
+.live{min-height:44px;border:1px dashed var(--line);border-radius:6px;padding:9px 10px;color:var(--muted);font-style:italic;flex:1;min-width:200px}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.hint code{font-family:var(--mono);font-size:12px;background:var(--bg);padding:1px 5px;border-radius:4px}
+.grid{display:grid;grid-template-columns:90px 2fr 90px 130px 120px 1.5fr;gap:10px}
+.msg{font-size:13px;min-height:18px}
+.msg.warn{color:var(--warn)} .msg.bad{color:var(--bad)} .msg.ok{color:var(--ok)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:760px;font-family:var(--mono);font-size:13px}
+th{position:sticky;top:0;text-align:left;font-family:var(--font);font-size:12px;font-weight:600;color:var(--muted);background:var(--bg);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{border-bottom:1px solid var(--line);padding:0}
+td input{border:0;border-radius:0;background:transparent;font-family:var(--mono);font-size:13px;padding:8px 10px}
+td input:focus{background:var(--bg)}
+td.idc{width:80px} td.act{width:44px;text-align:center}
+td.act button{padding:2px 8px;border:0;background:transparent;color:var(--muted)}
+.empty{padding:22px;text-align:center;color:var(--muted)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.bar .sp{flex:1}
+.count{font-size:13px;color:var(--muted)}
+.sent{border:1px solid var(--ok);border-radius:8px;padding:12px 14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.sent a{color:var(--accent);font-weight:600}
+@media (max-width:760px){.grid{grid-template-columns:1fr 1fr}.grid .wide{grid-column:1/-1}}
+@media print{
+  body{background:#fff;color:#000;padding:0}
+  .wrap>header p,.wrap>section:not(#tableSec){display:none}
+  #tableSec .bar,#tableSec .msg,td.act,th:last-child{display:none}
+  .tablewrap{border:0;overflow:visible}
+  table{min-width:0;font-size:11px} td input{padding:4px 6px;color:#000}
+}
+</style>
+</head><body>
+<div class="wrap">
+  <header>
+    <h1>eFarm</h1>
+    <p>Dictá cada receta, revisá la tabla y enviá todo al final.</p>
+  </header>
+
+  <section class="panel" aria-label="Dictado">
+    <h2>1 · Dictado</h2>
+    <div class="row">
+      <label style="width:130px">Primer id (una sola vez)
+        <input type="number" id="startId" min="0" step="1" placeholder="ej. 1250" inputmode="numeric">
+      </label>
+      <div class="mic" id="mic">
+        <button id="micBtn" class="primary" type="button"><span class="dot"></span><span id="micTxt">Empezar a dictar</span></button>
+      </div>
+      <div class="live" id="live" aria-live="polite">Lo que digas aparece acá.</div>
+    </div>
+    <p class="hint">Dictá en orden: descripción, cantidad, fecha, matrícula y nombre del médico. Hacé una pausa entre cada dato y la página pasa sola al campo siguiente. Al terminar el último, la fila se agrega y empieza la de abajo. Comandos sueltos: <code>atrás</code>, <code>saltar</code>, <code>borrar</code>. Si el micrófono no está disponible en esta vista, usá el micrófono del teclado del celular sobre cada campo.</p>
+    <div class="msg" id="micMsg"></div>
+    <div class="msg" id="curMsg" style="color:var(--accent);font-weight:600"></div>
+
+    <div class="grid" id="draft">
+      <label>id<input type="text" id="d_id" readonly></label>
+      <label class="wide">descripcion<input type="text" id="d_descripcion" autocomplete="off"></label>
+      <label>cantidad<input type="text" id="d_cantidad" inputmode="numeric" autocomplete="off"></label>
+      <label>fecha<input type="text" id="d_fecha" placeholder="DD/MM/AAAA" autocomplete="off"></label>
+      <label>matrícula<input type="text" id="d_matricula" inputmode="numeric" autocomplete="off"></label>
+      <label class="wide">nombre y apellido del médico<input type="text" id="d_nombre_apellido" autocomplete="off"></label>
+    </div>
+    <div class="bar">
+      <button class="primary" id="addBtn" type="button">Agregar a la tabla</button>
+      <button id="clearDraft" type="button">Limpiar campos</button>
+    </div>
+  </section>
+
+  <section class="panel" id="tableSec" aria-label="Tabla">
+    <div class="bar"><h2>2 · Tabla cargada</h2><span class="sp"></span><span class="count" id="count">0 filas</span></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>id</th><th>descripcion</th><th>cantidad</th><th>fecha</th><th>matricula</th><th>nombre_apellido</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty" id="empty">Todavía no hay filas. Dictá la primera receta o escribila arriba.</div>
+    </div>
+    <div class="bar">
+      <button id="dlXlsx" type="button">Descargar Excel (.xlsx)</button>
+      <button id="dlCsv" type="button">Descargar CSV</button>
+      <button id="copyBtn" type="button">Copiar para pegar en la hoja</button>
+      <span class="sp"></span>
+      <button id="resetBtn" type="button">Vaciar tabla</button>
+    </div>
+    <div class="msg" id="tblMsg"></div>
+  </section>
+
+  <section class="panel" aria-label="Envío">
+    <h2>3 · Enviar a Google Sheets</h2>
+    <p class="hint">Se envía todo junto al final, para que la carga no se ponga lenta. Las filas se agregan debajo de las que ya hay en <strong>Libro electronico farmacia Pasquiali</strong>, pestaña <strong>datos</strong>.</p>
+    <div class="bar">
+      <button class="primary" id="sendBtn" type="button">Enviar todo a Google Sheets</button>
+      <span class="msg" id="sendMsg"></span>
+    </div>
+    <div class="sent" id="sent" hidden>
+      <span id="sentTxt">Enviado.</span>
+      <a id="sentLink" href="#" target="_blank" rel="noopener" hidden>Abrir hoja</a>
+      <button id="printBtn" type="button">Imprimir</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  /* Pegá acá la URL de la aplicación web de Apps Script (termina en /exec) */
+  var APPS_SCRIPT_URL='';
+  var TOKEN='';
+  var COLS=['id','descripcion','cantidad','fecha','matricula','nombre_apellido'];
+  var HEAD=['id','descripcion','cantida','fecha','matricula','nombre_apellido'];
+  var KEY='libro-pasquali-v1';
+  var state={rows:[],start:''};
+  var $=function(id){return document.getElementById(id)};
+  function load(){try{var s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&Array.isArray(s.rows))state=s}catch(e){}}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+  function say(el,t,c){el.textContent=t||'';el.className=el.className.replace(/\b(warn|bad|ok)\b/g,'').trim()+(c?' '+c:'')}
+
+  /* ---- ids ---- */
+  function nextId(){
+    if(state.rows.length){var n=parseInt(state.rows[state.rows.length-1].id,10);if(!isNaN(n))return String(n+1)}
+    var s=parseInt($('startId').value,10);return isNaN(s)?'':String(s);
+  }
+  function refreshDraftId(){$('d_id').value=nextId()}
+
+  /* ---- table ---- */
+  function renderTable(){
+    var tb=$('rows');tb.innerHTML='';
+    state.rows.forEach(function(r,i){
+      var tr=document.createElement('tr');
+      COLS.forEach(function(c){
+        var td=document.createElement('td');if(c==='id')td.className='idc';
+        var inp=document.createElement('input');inp.type='text';inp.value=r[c]||'';inp.id='c_'+i+'_'+c;
+        inp.setAttribute('aria-label',c+' fila '+(i+1));
+        inp.addEventListener('input',function(){r[c]=inp.value;save();if(c==='id')refreshDraftId()});
+        td.appendChild(inp);tr.appendChild(td);
+      });
+      var ta=document.createElement('td');ta.className='act';
+      var b=document.createElement('button');b.type='button';b.textContent='✕';b.setAttribute('aria-label','Borrar fila '+(i+1));
+      b.addEventListener('click',function(){state.rows.splice(i,1);save();renderTable();refreshDraftId()});
+      ta.appendChild(b);tr.appendChild(ta);tb.appendChild(tr);
+    });
+    $('empty').hidden=state.rows.length>0;
+    $('count').textContent=state.rows.length+(state.rows.length===1?' fila':' filas');
+    $('sendBtn').disabled=!state.rows.length;
+    ['dlXlsx','dlCsv','copyBtn','resetBtn'].forEach(function(id){$(id).disabled=!state.rows.length});
+  }
+  function addRow(){
+    var r={};COLS.forEach(function(c){r[c]=$('d_'+c).value.trim()});
+    if(!r.id){say($('micMsg'),'Escribí el primer id arriba antes de agregar.','warn');$('startId').focus();return false}
+    if(!r.descripcion&&!r.nombre_apellido){say($('micMsg'),'Falta la descripción o el médico.','warn');return false}
+    state.rows.push(r);save();renderTable();clearDraft();
+    $('sent').hidden=true;
+    say($('micMsg'),'Fila '+r.id+' agregada.','ok');
+    var wrap=document.querySelector('.tablewrap');wrap.scrollTop=wrap.scrollHeight;
+    return true;
+  }
+  function clearDraft(){COLS.forEach(function(c){if(c!=='id')$('d_'+c).value=''});refreshDraftId()}
+
+  /* ---- voice parsing ---- */
+  var NUM={cero:0,un:1,uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,veinte:20,treinta:30};
+  var MES={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
+  function norm(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')}
+  function parseQty(t){var m=t.match(/\d+/);if(m)return m[0];var w=norm(t).trim().split(/\s+/)[0];return NUM[w]!==undefined?String(NUM[w]):t.trim()}
+  function pad(n){return (n<10?'0':'')+n}
+  function parseDate(t){
+    var n=norm(t).trim(),d=new Date();
+    if(/^hoy/.test(n))return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear();
+    var m=n.match(/(\d{1,2})\s*(?:de\s+)?([a-z]+)(?:\s*(?:de\s+)?(\d{4}))?/);
+    if(m&&MES[m[2]])return pad(+m[1])+'/'+pad(MES[m[2]])+'/'+(m[3]||d.getFullYear());
+    m=n.match(/(\d{1,2})[\/\-. ](\d{1,2})(?:[\/\-. ](\d{2,4}))?/);
+    if(m){var y=m[3]?(m[3].length===2?'20'+m[3]:m[3]):d.getFullYear();return pad(+m[1])+'/'+pad(+m[2])+'/'+y}
+    return t.trim();
+  }
+  function titleCase(s){return s.trim().replace(/\S+/g,function(w){return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()})}
+  var ORDER=['descripcion','cantidad','fecha','matricula','nombre_apellido'];
+  var cur=0;
+  function setCur(i){cur=i;ORDER.forEach(function(f,k){$('d_'+f).classList.toggle('cur',k===i)});say($('curMsg'),'Ahora: '+ORDER[i].replace('_',' y '))}
+  function fmt(f,t){
+    if(f==='cantidad')return parseQty(t);
+    if(f==='fecha')return parseDate(t);
+    if(f==='matricula')return t.replace(/[^\d]/g,'')||t;
+    if(f==='nombre_apellido')return titleCase(t);
+    return t;
+  }
+  function advance(){
+    if(cur<ORDER.length-1){setCur(cur+1);return}
+    if(addRow())setCur(0);
+  }
+  function applyUtterance(text){
+    var t=text.trim().replace(/[.,!?]+$/,'');if(!t)return;
+    var n=norm(t);
+    if(/^(atras|volver)$/.test(n)){setCur(Math.max(0,cur-1));return}
+    if(/^(saltar|omitir|siguiente)$/.test(n)){advance();return}
+    if(/^(borrar|repetir)$/.test(n)){$('d_'+ORDER[cur]).value='';return}
+    $('d_'+ORDER[cur]).value=fmt(ORDER[cur],t);
+    say($('micMsg'),'');
+    advance();
+  }
+
+  /* ---- speech ---- */
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition,rec=null,listening=false,wantOn=false;
+  function setMic(on){listening=on;$('mic').classList.toggle('on',on);$('micTxt').textContent=on?'Detener dictado':'Empezar a dictar'}
+  function startMic(){
+    if(!SR){say($('micMsg'),'Este navegador no ofrece dictado por voz. Usá el micrófono del teclado sobre cada campo.','warn');return}
+    rec=new SR();rec.lang='es-AR';rec.continuous=true;rec.interimResults=true;
+    rec.onresult=function(ev){
+      var interim='';
+      for(var i=ev.resultIndex;i<ev.results.length;i++){
+        var tr=ev.results[i][0].transcript;
+        if(ev.results[i].isFinal){$('live').textContent=tr;applyUtterance(tr)}else interim+=tr;
+      }
+      if(interim)$('live').textContent=interim;
+    };
+    rec.onerror=function(ev){
+      if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){wantOn=false;say($('micMsg'),'El micrófono no está permitido en esta vista. Usá el micrófono del teclado sobre cada campo, o abrí la página en una pestaña propia y permití el micrófono.','bad')}
+      else if(ev.error==='no-speech'||ev.error==='aborted'){}
+      else say($('micMsg'),'Error de dictado: '+ev.error,'warn');
+    };
+    rec.onend=function(){if(wantOn){try{rec.start()}catch(e){setMic(false)}}else setMic(false)};
+    try{wantOn=true;rec.start();setMic(true);say($('micMsg'),'')}catch(e){wantOn=false;say($('micMsg'),'No se pudo iniciar el micrófono.','bad')}
+  }
+  function stopMic(){wantOn=false;try{rec&&rec.stop()}catch(e){}setMic(false)}
+  $('micBtn').addEventListener('click',function(){listening?stopMic():startMic()});
+
+  /* ---- export ---- */
+  function esc(v,sep){v=String(v==null?'':v);return new RegExp('["\\n\\r'+sep+']').test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+  function toCsv(sep){
+    var lines=[HEAD.map(function(h){return esc(h,sep)}).join(sep)];
+    state.rows.forEach(function(r){lines.push(COLS.map(function(c){return esc(r[c],sep)}).join(sep))});
+    return lines.join('\r\n');
+  }
+  function stamp(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+  function saveFile(name,data,msgEl){
+    try{
+      var blob=new Blob([data],{type:/\.xlsx$/.test(name)?'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'text/csv;charset=utf-8'});
+      var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+      setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1000);say(msgEl,'Archivo descargado.','ok');
+    }catch(e){say(msgEl,'No se pudo descargar el archivo.','warn')}
+  }
+  $('dlXlsx').addEventListener('click',function(){
+    if(!window.XLSX){say($('tblMsg'),'No cargó el generador de Excel. Probá el CSV.','warn');return}
+    var aoa=[HEAD].concat(state.rows.map(function(r){return COLS.map(function(c){return r[c]||''})}));
+    var ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:8},{wch:42},{wch:10},{wch:12},{wch:12},{wch:28}];
+    var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'datos');
+    saveFile('libro-pasquali-'+stamp()+'.xlsx',XLSX.write(wb,{type:'array',bookType:'xlsx'}),$('tblMsg'));
+  });
+  $('dlCsv').addEventListener('click',function(){saveFile('libro-pasquali-'+stamp()+'.csv','﻿'+toCsv(';'),$('tblMsg'))});
+  $('copyBtn').addEventListener('click',function(){
+    var tsv=state.rows.map(function(r){return COLS.map(function(c){return String(r[c]||'').replace(/[\t\r\n]+/g,' ')}).join('\t')}).join('\n');
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(tsv).then(function(){say($('tblMsg'),'Copiado. En la hoja "datos", pegá en la primera celda libre de la columna A.','ok')},
+        function(){say($('tblMsg'),'El navegador no dejó copiar.','warn')});
+    }else say($('tblMsg'),'El navegador no dejó copiar.','warn');
+  });
+  var confirmReset=false;
+  $('resetBtn').addEventListener('click',function(){
+    if(!confirmReset){confirmReset=true;$('resetBtn').textContent='Tocá de nuevo para vaciar';setTimeout(function(){confirmReset=false;$('resetBtn').textContent='Vaciar tabla'},3500);return}
+    confirmReset=false;$('resetBtn').textContent='Vaciar tabla';state.rows=[];save();renderTable();refreshDraftId();$('sent').hidden=true;
+  });
+
+  /* ---- enviar a Google Sheets (Apps Script agrega las filas al final de la pestaña "datos") ---- */
+  function post(payload){
+    return fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)})
+      .then(function(r){return r.json()});
+  }
+  $('sendBtn').addEventListener('click',async function(){
+    var btn=$('sendBtn');
+    if(!APPS_SCRIPT_URL){say($('sendMsg'),'Falta configurar la URL de Apps Script en index.html.','bad');return}
+    btn.disabled=true;say($('sendMsg'),'Enviando…');
+    try{
+      var rows=state.rows.map(function(r){return COLS.map(function(c){return r[c]||''})});
+      var res=await post({token:TOKEN,rows:rows});
+      if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
+      say($('sendMsg'),'');
+      $('sent').hidden=false;
+      $('sentTxt').textContent='Enviado: '+res.added+' filas agregadas a "datos" (filas '+res.firstRow+' a '+res.lastRow+').';
+      $('sentLink').hidden=true;
+      var last=parseInt(rows[rows.length-1][0],10);state.rows=[];if(!isNaN(last)){$('startId').value=String(last+1);state.start=$('startId').value}save();renderTableKeep(rows.length);
+    }catch(e){
+      say($('sendMsg'),'No se pudo enviar ('+(e&&e.message||'error')+'). Los datos siguen acá. Revisá la hoja antes de reintentar para no duplicar filas.','bad');
+    }
+    btn.disabled=!state.rows.length;
+  });
+  var sentCount=0;
+  function renderTableKeep(n){sentCount=n;renderTable()}
+  $('printBtn').addEventListener('click',function(){window.print()});
+  /* al abrir: continuar la numeración desde el último id de la hoja */
+  if(APPS_SCRIPT_URL){
+    fetch(APPS_SCRIPT_URL).then(function(r){return r.json()}).then(function(r){
+      if(r&&r.ok&&r.lastId!=null&&!state.rows.length){$('startId').value=String(Number(r.lastId)+1);state.start=$('startId').value;save();refreshDraftId()}
+    }).catch(function(){});
+  }
+
+  /* ---- wiring ---- */
+  $('addBtn').addEventListener('click',function(){if(addRow())setCur(0)});
+  $('clearDraft').addEventListener('click',clearDraft);
+  $('startId').addEventListener('input',function(){state.start=this.value;save();refreshDraftId()});
+  ['d_descripcion','d_cantidad','d_fecha','d_matricula','d_nombre_apellido'].forEach(function(id){
+    $(id).addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();if(addRow())setCur(0)}});
+  });
+  ORDER.forEach(function(f,k){$('d_'+f).addEventListener('focus',function(){setCur(k)})});
+  load();setCur(0);$('startId').value=state.start||'';renderTable();refreshDraftId();
+})();
+</script>
+</body></html>
