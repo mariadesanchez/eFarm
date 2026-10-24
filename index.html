@@ -135,7 +135,7 @@ tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:
 <script>
 (function(){
   /* Pegá acá la URL de la aplicación web de Apps Script (termina en /exec) */
-  var APPS_SCRIPT_URL='';
+  var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxCYA2GamQkcFQA8rM47Wbh4rTMClVuDs5CQCgd3BBKxvooQwtipEq16Ofs87-5pjmB/exec';
   var TOKEN='';
 
   var COLS=['id','descripcion','cantidad','fecha','matricula','nombre_apellido'];
@@ -250,7 +250,7 @@ tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:
   function validDate(v){
     var m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v);if(!m)return false;
     var d=+m[1],mo=+m[2],y=+m[3],dt=new Date(y,mo-1,d);
-    return y>=2000&&y<=2100&&dt.getFullYear()===y&&dt.getMonth()===mo-1&&dt.getDate()===d;
+    return y>=1900&&y<=2100&&dt.getFullYear()===y&&dt.getMonth()===mo-1&&dt.getDate()===d;
   }
   function maskDate(v){
     var d=String(v).replace(/\D/g,'').slice(0,8),o=d.slice(0,2);
@@ -273,6 +273,7 @@ tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:
     else if(g.length===1&&/^\d{6}$/.test(g[0])){dd=g[0].slice(0,2);mm=g[0].slice(2,4);yy=g[0].slice(4)}
     else return '';
     if(yy.length===2)yy='20'+yy;
+    if(+mm>12&&+dd<=12){var tmp=dd;dd=mm;mm=tmp}   /* por si el navegador la escribe como mes/día */
     var out=pad(+dd)+'/'+pad(+mm)+'/'+yy;
     return validDate(out)?out:'';
   }
@@ -391,7 +392,10 @@ tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:
     }else if(f==='cantidad')v=parseQty(first);
     else if(f==='fecha'){
       v=parseDate(first);
-      if(!v){say($('micMsg'),'No entendí la fecha. Decila así: "doce de marzo de 2024".','warn');return}
+      if(!v){say($('micMsg'),'No entendí la fecha ("'+first+'"). Decila completa, por ejemplo "doce de marzo de 2024".','warn');return}
+      $('d_'+f).value=v;advance();
+      if(cur>0)say($('micMsg'),'Escuché "'+first+'" y quedó '+v+'. Si no es, tocá el campo y corregila.','ok');
+      return;
     }
     else if(f==='matricula')v=digitsOnly(first);
     else v=titleCase(first);
@@ -403,7 +407,7 @@ tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:
   /* ---------- micrófono ---------- */
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition,rec=null,listening=false,wantOn=false;
   function setMic(on){listening=on;$('micBtn').classList.toggle('on',on);$('micTxt').textContent=on?'Escuchando… tocá para parar':'Empezar a dictar'}
-  var noSpeech=0,lastText='',commitTimer=null,SILENCE_MS=600;
+  var noSpeech=0,lastText='',commitTimer=null,SILENCE_MS=600,FECHA_SILENCE_MS=1600;
   function clearCommit(){if(commitTimer){clearTimeout(commitTimer);commitTimer=null}lastText=''}
   function commitEarly(){
     var t=lastText;clearCommit();
@@ -428,7 +432,7 @@ tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:
       }
       if(interim){
         $('live').textContent=interim;
-        if(interim!==lastText){lastText=interim;clearTimeout(commitTimer);commitTimer=setTimeout(commitEarly,SILENCE_MS)}
+        if(interim!==lastText){lastText=interim;clearTimeout(commitTimer);commitTimer=setTimeout(commitEarly,ORDER[cur]==='fecha'?FECHA_SILENCE_MS:SILENCE_MS)}
       }
     };
     rec.onerror=function(ev){
