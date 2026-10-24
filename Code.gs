@@ -58,6 +58,24 @@ function doPost(e) {
     if (TOKEN && body.token !== TOKEN) return out_({ ok: false, error: 'token inválido' });
     var sh = sheet_();
 
+    if (body.action === 'delete') {
+      var drow = Number(body.row);
+      if (!drow || drow < 2 || drow > sh.getLastRow()) return out_({ ok: false, error: 'fila inválida' });
+      if (String(sh.getRange(drow, 1).getValue()) !== String(body.expectId)) return out_({ ok: false, error: 'la fila cambió en la hoja, volvé a buscar' });
+      var base = Number(sh.getRange(drow, 1).getValue()); // Nº de la fila que se borra: lo toma la fila siguiente
+      sh.deleteRow(drow);
+      var lastRow = sh.getLastRow(), renumbered = 0;
+      if (lastRow >= drow && !isNaN(base)) {
+        var n = lastRow - drow + 1, ids = [];
+        for (var k = 0; k < n; k++) ids.push([String(base + k)]);
+        var idRange = sh.getRange(drow, 1, n, 1);
+        idRange.setNumberFormat('@');
+        idRange.setValues(ids);
+        renumbered = n;
+      }
+      return out_({ ok: true, renumbered: renumbered });
+    }
+
     if (body.action === 'update') {
       var row = Number(body.row), v = body.values;
       if (!row || row < 2 || row > sh.getLastRow() || !v || v.length !== 6) return out_({ ok: false, error: 'fila inválida' });
