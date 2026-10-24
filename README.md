@@ -25,3 +25,7 @@ git branch -M main
 git remote add origin https://github.com/mariadesanchez/eFarm.git
 git push -u origin main
 ```
+
+## Actualizar el script después de cambiar Code.gs
+En Apps Script: Implementar → Administrar implementaciones → lápiz (Editar) → Versión: "Nueva versión" → Implementar.
+La URL `/exec` no cambia.
