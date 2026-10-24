@@ -53,7 +53,14 @@ td{border-top:1px solid var(--line);padding:0}
 td input{border:0;background:transparent;font:inherit;font-weight:600;color:var(--ink);padding:10px 12px;width:100%;min-width:0;border-radius:0}
 td input:focus{background:var(--bg)}
 td.idc{width:78px} td.act{width:46px;text-align:center}
-td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px}
+td.act{white-space:nowrap;width:96px}
+td.act button{border:0;background:transparent;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px;line-height:0}
+td.act button:hover{background:var(--green-soft);color:var(--green-dark)}
+td.act button.del:hover,td.act button.del.ask{background:#fde4e3;color:var(--red)}
+td.act button svg{width:20px;height:20px}
+td .v{display:block;padding:10px 12px;font-weight:600;min-height:42px}
+tr.editing{background:var(--green-soft)}
+tr.editing td input{background:#fff;border:2px solid var(--green);border-radius:8px;padding:8px 10px}
 .empty{padding:26px;text-align:center;color:var(--muted);font-weight:600}
 .count{color:var(--muted);font-weight:700;font-size:14px}
 .sent{display:flex;gap:12px;flex-wrap:wrap;align-items:center;background:var(--green-soft);border-radius:14px;padding:14px 16px;font-weight:700;color:var(--green-dark)}
@@ -62,7 +69,7 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
 @media print{
   body{background:#fff;padding:0}
   .card{box-shadow:none;padding:0}
-  header p,#entry,.noprint,td.act,th:last-child{display:none!important}
+  header p,#entry,.noprint{display:none!important}
   .printonly{display:block}
   .tablewrap{border:0;overflow:visible} table{min-width:0;font-size:12px}
   td input{padding:4px 8px}
@@ -107,11 +114,10 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
 
   <section class="card" aria-label="Filas cargadas">
     <div class="row noprint"><h2>Filas cargadas</h2><span class="sp"></span><span class="count" id="count">0 filas</span></div>
-    <div class="printonly"><p><strong>eFarm · Farmacia Pasquali</strong> · <span id="printDate"></span></p>
-      <table id="printTable"><thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Médico</th></tr></thead><tbody id="printRows"></tbody></table></div>
+    <div class="printonly"><table id="printTable"><thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Médico</th></tr></thead><tbody id="printRows"></tbody></table></div>
     <div class="tablewrap screenonly">
       <table>
-        <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Médico</th><th></th></tr></thead>
+        <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Médico</th><th>Acciones</th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
       <div class="empty" id="empty">Todavía no hay filas. Apretá el micrófono y dictá la primera.</div>
@@ -294,23 +300,54 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
     return state.start||'';
   }
   function refreshDraftId(){var v=nextId();if(document.activeElement!==$('d_id'))$('d_id').value=v}
+  var editIdx=-1;
+  function startEdit(i){editIdx=i;renderTable();var f=$('e_descripcion');if(f)f.focus()}
+  function saveEdit(i){
+    var r=state.rows[i],nv={};
+    COLS.forEach(function(c){nv[c]=$('e_'+c).value.trim()});
+    if(nv.fecha&&!validDate(nv.fecha)){say($('sendMsg'),'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('e_fecha').focus();return}
+    if(!nv.id){say($('sendMsg'),'El número de fila no puede quedar vacío.','warn');$('e_id').focus();return}
+    COLS.forEach(function(c){r[c]=nv[c]});
+    editIdx=-1;save();say($('sendMsg'),'Fila '+r.id+' actualizada.','ok');renderTable();refreshDraftId();
+  }
   function renderTable(){
     var tb=$('rows');tb.innerHTML='';
+    var ICON={
+      edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+      ok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+      del:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>'
+    };
     state.rows.forEach(function(r,i){
-      var tr=document.createElement('tr');
+      var editing=(editIdx===i);
+      var tr=document.createElement('tr');if(editing)tr.className='editing';
       COLS.forEach(function(c){
         var td=document.createElement('td');if(c==='id')td.className='idc';
-        var inp=document.createElement('input');inp.type='text';inp.value=r[c]||'';inp.readOnly=state.sent;
-        inp.setAttribute('aria-label',c+' fila '+(i+1));
-        inp.addEventListener('input',function(){if(c==='fecha')inp.value=maskDate(inp.value);r[c]=inp.value;save();if(c==='id')refreshDraftId()});
-        td.appendChild(inp);tr.appendChild(td);
+        if(editing){
+          var inp=document.createElement('input');inp.type='text';inp.value=r[c]||'';inp.id='e_'+c;
+          inp.setAttribute('aria-label',c+' fila '+(i+1));
+          inp.addEventListener('input',function(){if(c==='fecha')inp.value=maskDate(inp.value)});
+          inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();saveEdit(i)}else if(e.key==='Escape'){editIdx=-1;renderTable()}});
+          td.appendChild(inp);
+        }else{
+          var sp=document.createElement('span');sp.className='v';sp.textContent=r[c]||'';td.appendChild(sp);
+        }
+        tr.appendChild(td);
       });
       var ta=document.createElement('td');ta.className='act';
-      if(!state.sent){
-        var b=document.createElement('button');b.type='button';b.textContent='✕';b.setAttribute('aria-label','Borrar fila '+(i+1));
-        b.addEventListener('click',function(){state.rows.splice(i,1);save();renderTable();refreshDraftId()});
-        ta.appendChild(b);
-      }
+      var be=document.createElement('button');be.type='button';be.innerHTML=editing?ICON.ok:ICON.edit;
+      be.title=editing?'Guardar cambios':'Editar fila';be.setAttribute('aria-label',(editing?'Guardar cambios de la fila ':'Editar fila ')+(i+1));
+      be.addEventListener('click',function(){editing?saveEdit(i):startEdit(i)});
+      ta.appendChild(be);
+      var bd=document.createElement('button');bd.type='button';bd.className='del';bd.innerHTML=ICON.del;
+      bd.title='Eliminar fila';bd.setAttribute('aria-label','Eliminar fila '+(i+1));
+      var asked=false;
+      bd.addEventListener('click',function(){
+        if(!asked){asked=true;bd.classList.add('ask');say($('sendMsg'),'Tocá el cesto otra vez para eliminar la fila '+r.id+'.','warn');
+          setTimeout(function(){asked=false;bd.classList.remove('ask')},3500);return}
+        state.rows.splice(i,1);if(editIdx===i)editIdx=-1;else if(editIdx>i)editIdx--;
+        save();say($('sendMsg'),'');renderTable();refreshDraftId();
+      });
+      ta.appendChild(bd);
       tr.appendChild(ta);tb.appendChild(tr);
     });
     $('empty').hidden=state.rows.length>0;
@@ -416,6 +453,7 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
   /* ---------- enviar y guardar en Google Sheets ---------- */
   $('sendBtn').addEventListener('click',async function(){
     var btn=$('sendBtn');
+    if(editIdx>=0){say($('sendMsg'),'Primero guardá (✓) o cancelá los cambios de la fila que estás editando.','warn');return}
     if(!APPS_SCRIPT_URL){say($('sendMsg'),'Falta configurar la URL de Apps Script en index.html.','bad');return}
     btn.disabled=true;say($('sendMsg'),'Guardando…');stopMic();
     try{
@@ -433,7 +471,6 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
   });
   $('printBtn').addEventListener('click',function(){
     if(!state.sent)return;
-    $('printDate').textContent=new Date().toLocaleDateString('es-AR');
     window.print();
   });
   /* ---------- arranque ---------- */
