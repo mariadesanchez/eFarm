@@ -28,20 +28,22 @@ header p{margin:0;color:var(--muted);font-weight:700}
 h2{margin:0;font-size:19px;font-weight:800;color:#fff}
 .top{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
 /* botones 3D, todos del mismo color */
-.micbtn,button.btn,button.btn.main,button.btn.danger{font:inherit;font-weight:800;cursor:pointer;color:#fff;border:0;
-  background:var(--btn);box-shadow:0 4px 0 var(--btn-dark),0 8px 14px rgba(0,0,0,.35);
+.micbtn,button.btn,button.btn.main,button.btn.danger{font:inherit;font-weight:700;cursor:pointer;color:#fff;border:0;
+  background:var(--btn);box-shadow:0 2px 0 var(--btn-dark),0 4px 8px rgba(0,0,0,.3);
   transition:transform .08s ease,box-shadow .08s ease,filter .15s}
-button.btn{border-radius:14px;padding:13px 22px}
-button.btn:hover:not(:disabled),.micbtn:hover{transform:translateY(-1px);filter:brightness(1.1);box-shadow:0 5px 0 var(--btn-dark),0 10px 16px rgba(0,0,0,.4)}
-button.btn:active:not(:disabled),.micbtn:active{transform:translateY(4px);box-shadow:0 0 0 var(--btn-dark),0 2px 4px rgba(0,0,0,.4)}
-button.btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:0 2px 0 var(--btn-dark)}
-button.btn.danger{background:var(--red);box-shadow:0 4px 0 var(--red-dark),0 8px 14px rgba(0,0,0,.35)}
-button.btn.danger:hover:not(:disabled){box-shadow:0 5px 0 var(--red-dark),0 10px 16px rgba(0,0,0,.4)}
+button.btn{border-radius:10px;padding:8px 16px;font-size:14px;line-height:1.2}
+button.btn.icon{padding:8px 11px;line-height:0}
+button.btn svg{width:19px;height:19px;display:block}
+button.btn:hover:not(:disabled),.micbtn:hover{transform:translateY(-1px);filter:brightness(1.1);box-shadow:0 3px 0 var(--btn-dark),0 6px 10px rgba(0,0,0,.35)}
+button.btn:active:not(:disabled),.micbtn:active{transform:translateY(2px);box-shadow:0 0 0 var(--btn-dark),0 1px 2px rgba(0,0,0,.4)}
+button.btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:0 1px 0 var(--btn-dark)}
+button.btn.danger{background:var(--red);box-shadow:0 2px 0 var(--red-dark),0 4px 8px rgba(0,0,0,.3)}
+button.btn.danger:hover:not(:disabled){box-shadow:0 3px 0 var(--red-dark),0 6px 10px rgba(0,0,0,.35)}
 button.btn.danger:active:not(:disabled){box-shadow:0 0 0 var(--red-dark)}
-.micbtn{display:grid;place-items:center;width:76px;height:76px;border-radius:50%;padding:0}
-.micbtn svg{width:34px;height:34px}
-.micbtn.on{background:var(--rec);box-shadow:0 4px 0 var(--red-dark),0 0 0 6px rgba(255,59,87,.25);animation:pulse 1.4s infinite}
-@keyframes pulse{50%{box-shadow:0 4px 0 var(--red-dark),0 0 0 14px rgba(255,59,87,.1)}}
+.micbtn{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;padding:0}
+.micbtn svg{width:22px;height:22px}
+.micbtn.on{background:var(--rec);box-shadow:0 2px 0 var(--red-dark),0 0 0 5px rgba(255,59,87,.25);animation:pulse 1.4s infinite}
+@keyframes pulse{50%{box-shadow:0 2px 0 var(--red-dark),0 0 0 11px rgba(255,59,87,.1)}}
 @media (prefers-reduced-motion:reduce){.micbtn.on{animation:none}button.btn,.micbtn{transition:none}}
 .live{flex:1;min-width:200px;min-height:56px;display:flex;align-items:center;background:#0d0f1c;border:1px solid var(--line);border-radius:14px;padding:12px 15px;color:var(--muted);font-weight:700}
 .fields{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
@@ -68,11 +70,11 @@ td input{border:0;background:transparent;font:inherit;font-weight:700;color:#fff
 td input:focus{background:var(--accent-soft)}
 td.idc{width:78px}
 td.act{white-space:nowrap;width:104px;text-align:center}
-td.act button{width:38px;height:38px;margin:4px 3px;border:0;border-radius:11px;cursor:pointer;line-height:0;display:inline-grid;place-items:center;
+td.act button{width:32px;height:32px;margin:4px 3px;border:0;border-radius:11px;cursor:pointer;line-height:0;display:inline-grid;place-items:center;
   background:var(--btn-soft);box-shadow:0 3px 0 #0a0c18;transition:transform .08s,box-shadow .08s}
 td.act button:hover{transform:translateY(-1px);filter:brightness(1.2)}
 td.act button:active{transform:translateY(3px);box-shadow:0 0 0 #0a0c18}
-td.act button svg{width:21px;height:21px}
+td.act button svg{width:18px;height:18px}
 td.act button.ed{color:var(--green)}
 td.act button.del{color:var(--red)}
 td .v{display:block;padding:10px 12px;font-weight:700;min-height:42px}
@@ -113,7 +115,7 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
   <section class="card" id="entry" aria-label="Carga por voz">
     <div class="top">
       <button class="micbtn" id="micBtn" type="button" title="Empezar a dictar">
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V22h2v-3.08A7 7 0 0 0 19 12h-2z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M9 21h6"/></svg>
         <span id="micTxt" class="sr">Empezar a dictar</span>
       </button>
       <div class="live" id="live" aria-live="polite">Lo que digas aparece acá.</div>
@@ -131,7 +133,7 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
     <div class="row">
       <label class="id-in">Número de la próxima fila <input type="number" id="d_id" min="0" step="1" inputmode="numeric"></label>
       <span class="sp"></span>
-      <button class="btn main" id="addBtn" type="button">Agregar fila</button>
+      <button class="btn main" id="addBtn" type="button">+ Fila</button>
     </div>
   </section>
 
@@ -146,8 +148,8 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
       <div class="empty" id="empty">Todavía no hay filas. Apretá el micrófono y dictá la primera.</div>
     </div>
     <div class="row noprint" id="actions">
-      <button class="btn main" id="sendBtn" type="button">Enviar y guardar</button>
-      <button class="btn main" id="printBtn" type="button" hidden>Imprimir</button>
+      <button class="btn main" id="sendBtn" type="button">Enviar</button>
+      <button class="btn main icon" id="printBtn" type="button" title="Imprimir" aria-label="Imprimir" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7" rx="1"/><path d="M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/></svg></button>
       <span class="msg" id="sendMsg"></span>
     </div>
   </section>
@@ -158,9 +160,9 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
   <div class="row">
     <label class="id-in">Desde <input type="date" id="q_from"></label>
     <label class="id-in">Hasta <input type="date" id="q_to"></label>
-    <button class="btn main" id="q_go" type="button">Buscar</button>
+    <button class="btn main icon" id="q_go" type="button" title="Buscar" aria-label="Buscar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
     <span class="sp"></span>
-    <button class="btn main" id="q_print" type="button" hidden>Imprimir</button>
+    <button class="btn main icon" id="q_print" type="button" title="Imprimir" aria-label="Imprimir" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7" rx="1"/><path d="M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/></svg></button>
   </div>
   <div class="msg" id="q_msg"></div>
   <div class="tablewrap">
@@ -168,11 +170,11 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
       <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Médico</th><th>Acciones</th></tr></thead>
       <tbody id="q_rows"></tbody>
     </table>
-    <div class="empty" id="q_empty">Elegí las fechas y tocá Buscar para traer los datos de la hoja.</div>
+    <div class="empty" id="q_empty">Elegí las fechas y tocá la lupa para traer los datos de la hoja.</div>
   </div>
 </section>
 
-<p class="noprint" style="text-align:center;color:var(--muted);font-size:12px;margin:18px 0 0">eFarm · versión 24/10 oscuro sobrio</p>
+<p class="noprint" style="text-align:center;color:var(--muted);font-size:12px;margin:18px 0 0">eFarm · versión 24/10 botones delicados</p>
 
 <div id="dlg" hidden role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
   <div class="box">
