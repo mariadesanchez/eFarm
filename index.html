@@ -315,11 +315,13 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
   /* ---------- micrófono ---------- */
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition,rec=null,listening=false,wantOn=false;
   function setMic(on){listening=on;$('micBtn').classList.toggle('on',on);$('micTxt').textContent=on?'Escuchando… tocá para parar':'Empezar a dictar'}
-  function startMic(){
-    if(!SR){say($('micMsg'),'Este navegador no tiene dictado por voz. Usá Chrome, o el micrófono del teclado del celular.','warn');return}
+  var noSpeech=0;
+  function beginRecognition(){
     rec=new SR();rec.lang='es-AR';rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=5;
+    rec.onstart=function(){say($('micMsg'),'Micrófono encendido. Ya podés hablar.','ok')};
+    rec.onspeechstart=function(){noSpeech=0;say($('micMsg'),'Te estoy escuchando…','ok')};
     rec.onresult=function(ev){
-      var interim='';
+      noSpeech=0;var interim='';
       for(var i=ev.resultIndex;i<ev.results.length;i++){
         var res=ev.results[i];
         if(res.isFinal){
@@ -330,11 +332,34 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
       if(interim)$('live').textContent=interim;
     };
     rec.onerror=function(ev){
-      if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){wantOn=false;say($('micMsg'),'Permití el uso del micrófono en el navegador y volvé a intentar.','bad')}
-      else if(ev.error!=='no-speech'&&ev.error!=='aborted')say($('micMsg'),'Error de dictado: '+ev.error,'warn');
+      var e=ev.error;
+      if(e==='not-allowed'||e==='service-not-allowed'){wantOn=false;say($('micMsg'),'El navegador bloqueó el micrófono. Tocá el candado junto a la dirección, permití el micrófono y recargá la página.','bad')}
+      else if(e==='audio-capture'){wantOn=false;say($('micMsg'),'No se encuentra ningún micrófono. Revisá que esté conectado y elegido en el sistema.','bad')}
+      else if(e==='network'){wantOn=false;say($('micMsg'),'El dictado necesita internet (usa el servicio de voz del navegador). Revisá la conexión.','bad')}
+      else if(e==='no-speech'){noSpeech++;if(noSpeech>=2)say($('micMsg'),'No te escucho. Revisá que el micrófono del equipo esté activo y hablá más cerca.','warn')}
+      else if(e!=='aborted')say($('micMsg'),'Error de dictado: '+e,'warn');
     };
-    rec.onend=function(){if(wantOn){try{rec.start()}catch(e){setMic(false)}}else setMic(false)};
-    try{wantOn=true;rec.start();setMic(true);say($('micMsg'),'')}catch(e){wantOn=false;say($('micMsg'),'No se pudo iniciar el micrófono.','bad')}
+    rec.onend=function(){
+      if(wantOn){setTimeout(function(){if(wantOn){try{rec.start()}catch(x){beginRecognition()}}},250)}
+      else setMic(false);
+    };
+    try{rec.start()}catch(x){wantOn=false;setMic(false);say($('micMsg'),'No se pudo iniciar el dictado: '+x.message,'bad')}
+  }
+  function startMic(){
+    if(!SR){say($('micMsg'),'Este navegador no tiene dictado por voz. Usá Google Chrome, o el micrófono del teclado del celular.','warn');return}
+    if(location.protocol==='file:'){say($('micMsg'),'Abrí la página desde su dirección https (no como archivo) para usar el micrófono.','bad');return}
+    wantOn=true;noSpeech=0;setMic(true);say($('micMsg'),'Pidiendo permiso del micrófono…');
+    /* primero se pide el micrófono para que el navegador muestre el permiso y se vea cualquier problema */
+    if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+      navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){
+        st.getTracks().forEach(function(t){t.stop()});
+        if(wantOn)beginRecognition();
+      }).catch(function(err){
+        wantOn=false;setMic(false);
+        var n=err&&err.name;
+        say($('micMsg'),n==='NotFoundError'?'No se encuentra ningún micrófono.':'El navegador no dio permiso al micrófono. Tocá el candado junto a la dirección, permitilo y recargá.','bad');
+      });
+    }else beginRecognition();
   }
   function stopMic(){wantOn=false;try{rec&&rec.stop()}catch(e){}setMic(false)}
   $('micBtn').addEventListener('click',function(){listening?stopMic():startMic()});
