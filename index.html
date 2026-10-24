@@ -66,6 +66,9 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
   .printonly{display:block}
   .tablewrap{border:0;overflow:visible} table{min-width:0;font-size:12px}
   td input{padding:4px 8px}
+  .screenonly{display:none!important}
+  #printTable{border-collapse:collapse;width:100%;font-size:12px}
+  #printTable th,#printTable td{border:1px solid #999;padding:5px 8px;text-align:left;background:#fff;color:#000}
   body:not(.printable) .wrap{display:none}
   body:not(.printable)::before{content:"Primero hay que enviar y guardar los datos.";display:block;font-size:18px;padding:40px}
 }
@@ -103,9 +106,10 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
   </section>
 
   <section class="card" aria-label="Filas cargadas">
-    <div class="row"><h2>Filas cargadas</h2><span class="sp"></span><span class="count" id="count">0 filas</span></div>
-    <div class="printonly"><strong>eFarm · Farmacia Pasquali</strong> · <span id="printDate"></span></div>
-    <div class="tablewrap">
+    <div class="row noprint"><h2>Filas cargadas</h2><span class="sp"></span><span class="count" id="count">0 filas</span></div>
+    <div class="printonly"><p><strong>eFarm · Farmacia Pasquali</strong> · <span id="printDate"></span></p>
+      <table id="printTable"><thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Médico</th></tr></thead><tbody id="printRows"></tbody></table></div>
+    <div class="tablewrap screenonly">
       <table>
         <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Médico</th><th></th></tr></thead>
         <tbody id="rows"></tbody>
@@ -130,7 +134,7 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
   var ORDER=['descripcion','cantidad','fecha','matricula','nombre_apellido'];
   var LABEL={descripcion:'el medicamento y la dosis',cantidad:'la cantidad',fecha:'la fecha',matricula:'la matrícula',nombre_apellido:'el nombre y apellido del médico'};
   var KEY='efarm-v1';
-  var state={rows:[],sent:false,sentTxt:''};
+  var state={rows:[],sent:false,sentTxt:'',printRows:[]};
   var $=function(id){return document.getElementById(id)};
   function load(){try{var s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&Array.isArray(s.rows))state=s}catch(e){}}
   function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
@@ -216,15 +220,53 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
     return m?m[0]:t.trim();
   }
   var MES={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
+  function dateWords(tk){
+    var out=[],i=0;
+    while(i<tk.length){
+      var w=tk[i];
+      if(w==='dos'&&tk[i+1]==='mil'){
+        i+=2;var v=2000;if(tk[i]==='y')i++;
+        if(isNum(tk[i])){v+=NUMW[tk[i]];i++;
+          if(NUMW[tk[i-1]]>=20&&NUMW[tk[i-1]]<100&&tk[i]==='y'&&isNum(tk[i+1])&&NUMW[tk[i+1]]<10){v+=NUMW[tk[i+1]];i+=2}}
+        out.push(String(v));continue;
+      }
+      if(isNum(w)){
+        var n=NUMW[w];i++;
+        if(n>=20&&n<100&&tk[i]==='y'&&isNum(tk[i+1])&&NUMW[tk[i+1]]<10){n+=NUMW[tk[i+1]];i+=2}
+        out.push(String(n));continue;
+      }
+      out.push(w);i++;
+    }
+    return out;
+  }
+  function validDate(v){
+    var m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v);if(!m)return false;
+    var d=+m[1],mo=+m[2],y=+m[3],dt=new Date(y,mo-1,d);
+    return y>=2000&&y<=2100&&dt.getFullYear()===y&&dt.getMonth()===mo-1&&dt.getDate()===d;
+  }
+  function maskDate(v){
+    var d=String(v).replace(/\D/g,'').slice(0,8),o=d.slice(0,2);
+    if(d.length>2)o+='/'+d.slice(2,4);
+    if(d.length>4)o+='/'+d.slice(4);
+    return o;
+  }
+  /* devuelve siempre DD/MM/AAAA, o '' si no se entiende */
   function parseDate(t){
-    var n=norm(numberWords(t)).trim(),d=new Date();
-    if(/^hoy/.test(n))return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear();
-    if(/^ayer/.test(n)){d.setDate(d.getDate()-1);return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()}
-    var m=n.match(/(\d{1,2})\s*(?:de\s+)?([a-z]+)(?:\s*(?:de\s+)?(\d{4}))?/);
-    if(m&&MES[m[2]])return pad(+m[1])+'/'+pad(MES[m[2]])+'/'+(m[3]||d.getFullYear());
-    m=n.match(/(\d{1,2})[\/\-. ](\d{1,2})(?:[\/\-. ](\d{2,4}))?/);
-    if(m){var y=m[3]?(m[3].length===2?'20'+m[3]:m[3]):d.getFullYear();return pad(+m[1])+'/'+pad(+m[2])+'/'+y}
-    return t.trim();
+    var n=norm(t).trim(),d=new Date(),now=function(x){return pad(x.getDate())+'/'+pad(x.getMonth()+1)+'/'+x.getFullYear()};
+    if(/^hoy/.test(n))return now(d);
+    if(/^ayer/.test(n)){d.setDate(d.getDate()-1);return now(d)}
+    n=dateWords(n.split(/\s+/).filter(Boolean)).join(' ');
+    n=n.replace(/\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/g,function(m){return ' '+MES[m]+' '});
+    var g=n.replace(/[^\d]+/g,' ').trim();g=g?g.split(' '):[];
+    var dd,mm,yy;
+    if(g.length>=3){dd=g[0];mm=g[1];yy=g[2]}
+    else if(g.length===2){dd=g[0];mm=g[1];yy=String(d.getFullYear())}
+    else if(g.length===1&&/^\d{8}$/.test(g[0])){dd=g[0].slice(0,2);mm=g[0].slice(2,4);yy=g[0].slice(4)}
+    else if(g.length===1&&/^\d{6}$/.test(g[0])){dd=g[0].slice(0,2);mm=g[0].slice(2,4);yy=g[0].slice(4)}
+    else return '';
+    if(yy.length===2)yy='20'+yy;
+    var out=pad(+dd)+'/'+pad(+mm)+'/'+yy;
+    return validDate(out)?out:'';
   }
   function titleCase(s){return s.trim().replace(/\S+/g,function(w){return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()})}
   function digitsOnly(t){
@@ -260,7 +302,7 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
         var td=document.createElement('td');if(c==='id')td.className='idc';
         var inp=document.createElement('input');inp.type='text';inp.value=r[c]||'';inp.readOnly=state.sent;
         inp.setAttribute('aria-label',c+' fila '+(i+1));
-        inp.addEventListener('input',function(){r[c]=inp.value;save();if(c==='id')refreshDraftId()});
+        inp.addEventListener('input',function(){if(c==='fecha')inp.value=maskDate(inp.value);r[c]=inp.value;save();if(c==='id')refreshDraftId()});
         td.appendChild(inp);tr.appendChild(td);
       });
       var ta=document.createElement('td');ta.className='act';
@@ -272,6 +314,9 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
       tr.appendChild(ta);tb.appendChild(tr);
     });
     $('empty').hidden=state.rows.length>0;
+    $('empty').textContent=state.sent?'Guardado. La tabla está lista para una nueva carga.':'Todavía no hay filas. Apretá el micrófono y dictá la primera.';
+    var pr=$('printRows');pr.innerHTML='';
+    (state.printRows||[]).forEach(function(r){var tr=document.createElement('tr');COLS.forEach(function(c){var td=document.createElement('td');td.textContent=r[c]||'';tr.appendChild(td)});pr.appendChild(tr)});
     $('count').textContent=state.rows.length+(state.rows.length===1?' fila':' filas');
     $('sendBtn').disabled=!state.rows.length||state.sent;
     $('printBtn').hidden=!state.sent;
@@ -280,8 +325,9 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
   }
   function addRow(){
     var r={};COLS.forEach(function(c){r[c]=c==='id'?$('d_id').value.trim():$('d_'+c).value.trim()});
-    if(state.sent){state.rows=[];state.sent=false;state.sentTxt='';state.start=r.id;say($('sendMsg'),'')}
+    if(state.sent){state.printRows=[];state.sent=false;state.sentTxt='';say($('sendMsg'),'')}
     if(!state.rows.length&&r.id)state.start=r.id;
+    if(r.fecha&&!validDate(r.fecha)){say($('micMsg'),'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('d_fecha').focus();return false}
     if(!r.id){say($('micMsg'),'Escribí el número de la fila antes de agregar.','warn');$('d_id').focus();return false}
     if(!r.descripcion&&!r.nombre_apellido){say($('micMsg'),'Falta el medicamento o el médico.','warn');return false}
     state.rows.push(r);save();renderTable();
@@ -304,7 +350,10 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
       alts.forEach(function(a){var c=correctDesc(a);if(!best||c.score>best.score+0.01)best=c});
       v=best.text;
     }else if(f==='cantidad')v=parseQty(first);
-    else if(f==='fecha')v=parseDate(first);
+    else if(f==='fecha'){
+      v=parseDate(first);
+      if(!v){say($('micMsg'),'No entendí la fecha. Decila así: "doce de marzo de 2024".','warn');return}
+    }
     else if(f==='matricula')v=digitsOnly(first);
     else v=titleCase(first);
     $('d_'+f).value=v;
@@ -373,6 +422,8 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
       var rows=state.rows.map(function(r){return COLS.map(function(c){return r[c]||''})});
       var res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:TOKEN,rows:rows})}).then(function(r){return r.json()});
       if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
+      var lastId=parseInt(state.rows[state.rows.length-1].id,10);
+      state.printRows=state.rows.slice();state.rows=[];if(!isNaN(lastId))state.start=String(lastId+1);
       state.sent=true;state.sentTxt='Guardado: '+res.added+(res.added===1?' fila agregada':' filas agregadas')+' a la hoja.';
       save();renderTable();
     }catch(e){
@@ -388,6 +439,8 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
   /* ---------- arranque ---------- */
   $('addBtn').addEventListener('click',function(){if(addRow())setCur(0)});
   $('d_id').addEventListener('input',function(){if(!state.rows.length){state.start=this.value;save()}});
+  $('d_fecha').addEventListener('input',function(){this.value=maskDate(this.value)});
+  $('d_fecha').setAttribute('inputmode','numeric');
   ORDER.forEach(function(f,k){
     $('d_'+f).addEventListener('focus',function(){setCur(k)});
     $('d_'+f).addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();advance()}});
