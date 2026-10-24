@@ -113,6 +113,7 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
   </header>
 
   <section class="card" id="entry" aria-label="Carga por voz">
+    <div class="row"><label class="id-in">Número de la próxima fila <input type="number" id="d_id" min="0" step="1" inputmode="numeric"></label></div>
     <div class="top">
       <button class="micbtn" id="micBtn" type="button" title="Empezar a dictar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M9 21h6"/></svg>
@@ -120,7 +121,6 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
       </button>
       <div class="live" id="live" aria-live="polite">Lo que digas aparece acá.</div>
     </div>
-    <div class="now" id="curMsg"></div>
     <div class="msg" id="micMsg"></div>
 
     <div class="fields">
@@ -131,7 +131,6 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
       <label class="f" id="f_nombre_apellido">Médico<input type="text" id="d_nombre_apellido" autocomplete="off"></label>
     </div>
     <div class="row">
-      <label class="id-in">Número de la próxima fila <input type="number" id="d_id" min="0" step="1" inputmode="numeric"></label>
       <span class="sp"></span>
       <button class="btn main" id="addBtn" type="button">+ Fila</button>
     </div>
@@ -174,7 +173,7 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
   </div>
 </section>
 
-<p class="noprint" style="text-align:center;color:var(--muted);font-size:12px;margin:18px 0 0">eFarm · versión 24/10 botones delicados</p>
+<p class="noprint" style="text-align:center;color:var(--muted);font-size:12px;margin:18px 0 0">eFarm · versión 24/10 número arriba</p>
 
 <div id="dlg" hidden role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
   <div class="box">
@@ -344,7 +343,6 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
       $('d_'+f).classList.toggle('cur',k===i);
       $('f_'+f).classList.toggle('done',k<i);
     });
-    say($('curMsg'),'Decí '+LABEL[ORDER[i]]);
   }
   function advance(){
     if(cur<ORDER.length-1){setCur(cur+1);return}
