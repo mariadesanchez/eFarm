@@ -114,13 +114,8 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
     </div>
     <div class="row noprint" id="actions">
       <button class="btn main" id="sendBtn" type="button">Enviar y guardar</button>
-      <button class="btn" id="resetBtn" type="button">Vaciar</button>
+      <button class="btn main" id="printBtn" type="button" hidden>Imprimir</button>
       <span class="msg" id="sendMsg"></span>
-    </div>
-    <div class="sent noprint" id="sent" hidden>
-      <span id="sentTxt">Guardado.</span>
-      <button class="btn main" id="printBtn" type="button">Imprimir</button>
-      <button class="btn" id="newBtn" type="button">Nueva carga</button>
     </div>
   </section>
 </div>
@@ -278,16 +273,14 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
     });
     $('empty').hidden=state.rows.length>0;
     $('count').textContent=state.rows.length+(state.rows.length===1?' fila':' filas');
-    $('actions').hidden=state.sent;
-    $('sent').hidden=!state.sent;
-    $('entry').hidden=state.sent;
-    $('sentTxt').textContent=state.sentTxt||'Guardado.';
-    $('sendBtn').disabled=!state.rows.length;
-    $('resetBtn').disabled=!state.rows.length;
+    $('sendBtn').disabled=!state.rows.length||state.sent;
+    $('printBtn').hidden=!state.sent;
+    if(state.sent)say($('sendMsg'),state.sentTxt||'Guardado.','ok');
     document.body.classList.toggle('printable',!!state.sent);
   }
   function addRow(){
     var r={};COLS.forEach(function(c){r[c]=c==='id'?$('d_id').value.trim():$('d_'+c).value.trim()});
+    if(state.sent){state.rows=[];state.sent=false;state.sentTxt='';state.start=r.id;say($('sendMsg'),'')}
     if(!state.rows.length&&r.id)state.start=r.id;
     if(!r.id){say($('micMsg'),'Escribí el número de la fila antes de agregar.','warn');$('d_id').focus();return false}
     if(!r.descripcion&&!r.nombre_apellido){say($('micMsg'),'Falta el medicamento o el médico.','warn');return false}
@@ -356,7 +349,7 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
       var res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:TOKEN,rows:rows})}).then(function(r){return r.json()});
       if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
       state.sent=true;state.sentTxt='Guardado: '+res.added+(res.added===1?' fila agregada':' filas agregadas')+' a la hoja.';
-      save();say($('sendMsg'),'');renderTable();
+      save();renderTable();
     }catch(e){
       say($('sendMsg'),'No se pudo guardar ('+(e&&e.message||'error')+'). Los datos siguen acá. Revisá la hoja antes de reintentar para no duplicar filas.','bad');
       btn.disabled=!state.rows.length;
@@ -367,18 +360,6 @@ td.act button{border:0;background:transparent;color:var(--muted);font-size:16px;
     $('printDate').textContent=new Date().toLocaleDateString('es-AR');
     window.print();
   });
-  $('newBtn').addEventListener('click',function(){
-    var last=state.rows.length?parseInt(state.rows[state.rows.length-1].id,10):NaN;
-    state={rows:[],sent:false,sentTxt:'',start:isNaN(last)?'':String(last+1)};
-    save();ORDER.forEach(function(f){$('d_'+f).value=''});renderTable();refreshDraftId();setCur(0);
-  });
-  var confirmReset=false;
-  $('resetBtn').addEventListener('click',function(){
-    var b=$('resetBtn');
-    if(!confirmReset){confirmReset=true;b.textContent='Tocá de nuevo para vaciar';setTimeout(function(){confirmReset=false;b.textContent='Vaciar'},3500);return}
-    confirmReset=false;b.textContent='Vaciar';state.rows=[];save();renderTable();refreshDraftId();
-  });
-
   /* ---------- arranque ---------- */
   $('addBtn').addEventListener('click',function(){if(addRow())setCur(0)});
   $('d_id').addEventListener('input',function(){if(!state.rows.length){state.start=this.value;save()}});
