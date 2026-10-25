@@ -128,7 +128,6 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
       <label class="f" id="f_cantidad">Cantidad<input type="text" id="d_cantidad" inputmode="numeric" autocomplete="off"></label>
       <label class="f" id="f_fecha">Fecha<input type="text" id="d_fecha" placeholder="DD/MM/AAAA" autocomplete="off"></label>
       <label class="f" id="f_matricula">Matrícula<input type="text" id="d_matricula" inputmode="numeric" autocomplete="off"></label>
-      <label class="f" id="f_nombre_apellido">Médico<input type="text" id="d_nombre_apellido" autocomplete="off"></label>
     </div>
     <div class="row">
       <span class="sp"></span>
@@ -138,10 +137,10 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
 
   <section class="card" aria-label="Filas cargadas">
     <div class="row noprint"><h2>Filas cargadas</h2><span class="sp"></span><span class="count" id="count">0 filas</span></div>
-    <div class="printonly"><table id="printTable"><thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Médico</th></tr></thead><tbody id="printRows"></tbody></table></div>
+    <div class="printonly"><table id="printTable"><thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th></tr></thead><tbody id="printRows"></tbody></table></div>
     <div class="tablewrap screenonly">
       <table>
-        <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Médico</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Acciones</th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
       <div class="empty" id="empty">Todavía no hay filas. Apretá el micrófono y dictá la primera.</div>
@@ -166,7 +165,7 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
   <div class="msg" id="q_msg"></div>
   <div class="tablewrap">
     <table>
-      <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Médico</th><th>Acciones</th></tr></thead>
+      <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Acciones</th></tr></thead>
       <tbody id="q_rows"></tbody>
     </table>
     <div class="empty" id="q_empty">Elegí las fechas y tocá la lupa para traer los datos de la hoja.</div>
@@ -188,12 +187,14 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
 <script>
 (function(){
   /* Pegá acá la URL de la aplicación web de Apps Script (termina en /exec) */
-  var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbw2OSml8IyqIkHbgGOy-KE_KqMTSSNxROZcALp7F9MwxOpIw_06bXH1FmovQLJwnrc/exec';
+  var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbw2OSml8IyqIkHbgGOy-/exec';
+  
   var TOKEN='';
 
-  var COLS=['id','descripcion','cantidad','fecha','matricula','nombre_apellido'];
-  var ORDER=['descripcion','cantidad','fecha','matricula','nombre_apellido'];
-  var LABEL={descripcion:'el medicamento y la dosis',cantidad:'la cantidad',fecha:'la fecha',matricula:'la matrícula',nombre_apellido:'el nombre y apellido del médico'};
+  var COLS=['id','descripcion','cantidad','fecha','matricula'];
+  var VIEW=COLS;
+  var ORDER=['descripcion','cantidad','fecha','matricula'];
+  var LABEL={descripcion:'el medicamento y la dosis',cantidad:'la cantidad',fecha:'la fecha',matricula:'la matrícula'};
   var KEY='efarm-v1';
   var state={rows:[],sent:false,sentTxt:'',printRows:[]};
   var $=function(id){return document.getElementById(id)};
@@ -372,11 +373,11 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
   function startEdit(i){editIdx=i;renderTable();var f=$('e_descripcion');if(f)f.focus()}
   async function saveEdit(i){
     var r=state.rows[i],nv={};
-    COLS.forEach(function(c){nv[c]=$('e_'+c).value.trim()});
+    VIEW.forEach(function(c){nv[c]=$('e_'+c).value.trim()});
     if(nv.fecha&&!validDate(nv.fecha)){say($('sendMsg'),'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('e_fecha').focus();return}
     if(!nv.id){say($('sendMsg'),'El número de fila no puede quedar vacío.','warn');$('e_id').focus();return}
     if(!(await ask('¿Guardar los cambios?','Se va a modificar la fila '+r.id+'.','Sí, guardar')))return;
-    COLS.forEach(function(c){r[c]=nv[c]});
+    VIEW.forEach(function(c){r[c]=nv[c]});
     editIdx=-1;save();say($('sendMsg'),'Fila '+r.id+' actualizada.','ok');renderTable();refreshDraftId();
   }
   function renderTable(){
@@ -389,7 +390,7 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
     state.rows.forEach(function(r,i){
       var editing=(editIdx===i);
       var tr=document.createElement('tr');if(editing)tr.className='editing';
-      COLS.forEach(function(c){
+      VIEW.forEach(function(c){
         var td=document.createElement('td');if(c==='id')td.className='idc';
         if(editing){
           var inp=document.createElement('input');inp.type='text';inp.value=r[c]||'';inp.id='e_'+c;
@@ -422,7 +423,7 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
     $('empty').hidden=state.rows.length>0;
     $('empty').textContent=state.sent?'Guardado. La tabla está lista para una nueva carga.':'Todavía no hay filas. Apretá el micrófono y dictá la primera.';
     var pr=$('printRows');pr.innerHTML='';
-    (state.printRows||[]).forEach(function(r){var tr=document.createElement('tr');COLS.forEach(function(c){var td=document.createElement('td');td.textContent=r[c]||'';tr.appendChild(td)});pr.appendChild(tr)});
+    (state.printRows||[]).forEach(function(r){var tr=document.createElement('tr');VIEW.forEach(function(c){var td=document.createElement('td');td.textContent=r[c]||'';tr.appendChild(td)});pr.appendChild(tr)});
     $('count').textContent=state.rows.length+(state.rows.length===1?' fila':' filas');
     $('sendBtn').disabled=!state.rows.length||state.sent;
     $('printBtn').hidden=!state.sent;
@@ -430,12 +431,12 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
     document.body.classList.toggle('printable',!!state.sent);
   }
   function addRow(){
-    var r={};COLS.forEach(function(c){r[c]=c==='id'?$('d_id').value.trim():$('d_'+c).value.trim()});
+    var r={};VIEW.forEach(function(c){r[c]=c==='id'?$('d_id').value.trim():$('d_'+c).value.trim()});
     if(state.sent){state.printRows=[];state.sent=false;state.sentTxt='';say($('sendMsg'),'')}
     if(!state.rows.length&&r.id)state.start=r.id;
     if(r.fecha&&!validDate(r.fecha)){say($('micMsg'),'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('d_fecha').focus();return false}
     if(!r.id){say($('micMsg'),'Escribí el número de la fila antes de agregar.','warn');$('d_id').focus();return false}
-    if(!r.descripcion&&!r.nombre_apellido){say($('micMsg'),'Falta el medicamento o el médico.','warn');return false}
+    if(!r.descripcion){say($('micMsg'),'Falta el medicamento.','warn');return false}
     state.rows.push(r);save();renderTable();
     ORDER.forEach(function(f){$('d_'+f).value=''});
     refreshDraftId();
@@ -570,7 +571,7 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
     var tb=$('q_rows');tb.innerHTML='';
     qRows.forEach(function(q,i){
       var editing=(qEdit===i),tr=document.createElement('tr');if(editing)tr.className='editing';
-      COLS.forEach(function(c){
+      VIEW.forEach(function(c){
         var td=document.createElement('td');if(c==='id')td.className='idc';
         if(editing){
           var inp=document.createElement('input');inp.type='text';inp.value=q.values[c]||'';inp.id='qe_'+c;
@@ -614,7 +615,7 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
   }
   async function saveQEdit(i){
     var q=qRows[i],nv={},m=$('q_msg');
-    COLS.forEach(function(c){nv[c]=$('qe_'+c).value.trim()});
+    VIEW.forEach(function(c){nv[c]=$('qe_'+c).value.trim()});
     if(nv.fecha&&!validDate(nv.fecha)){say(m,'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('qe_fecha').focus();return}
     if(!nv.id){say(m,'El número de fila no puede quedar vacío.','warn');$('qe_id').focus();return}
     if(!(await ask('¿Guardar los cambios?','Se va a modificar la fila '+q.values.id+' en la hoja de Google.','Sí, guardar')))return;
@@ -652,7 +653,7 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
     if(!qRows.length)return;
     if(qEdit>=0){say($('q_msg'),'Primero guardá (✓) o cancelá los cambios de la fila que estás editando.','warn');return}
     var pr=$('printRows');pr.innerHTML='';
-    qRows.forEach(function(q){var tr=document.createElement('tr');COLS.forEach(function(c){var td=document.createElement('td');td.textContent=q.values[c]||'';tr.appendChild(td)});pr.appendChild(tr)});
+    qRows.forEach(function(q){var tr=document.createElement('tr');VIEW.forEach(function(c){var td=document.createElement('td');td.textContent=q.values[c]||'';tr.appendChild(td)});pr.appendChild(tr)});
     printingQuery=true;document.body.classList.add('printable');window.print();
   }
   window.addEventListener('afterprint',function(){if(printingQuery){printingQuery=false;renderTable()}});
