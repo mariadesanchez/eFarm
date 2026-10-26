@@ -94,12 +94,23 @@ html{-webkit-text-size-adjust:100%}
 button,.micbtn{touch-action:manipulation}
 #f_descripcion{position:relative}
 .lockc{display:flex;align-items:flex-end;padding-bottom:12px}
-td.act{width:150px}
+td.act{width:176px;text-align:right;padding-right:8px}
 .sel{width:22px;height:22px;margin:0 6px 0 2px;accent-color:var(--btn);cursor:pointer;flex:none;vertical-align:middle}
-.bulk{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-weight:700;font-size:14px;color:var(--muted)}
-.bulk[hidden]{display:none}
+.bulk{display:none;align-items:center;gap:14px;flex-wrap:wrap;font-weight:700;font-size:14px;color:var(--muted)}
+.acth{width:176px;padding-right:8px;white-space:nowrap}
+.acth-t{display:inline-block;width:70px}
+.acth-ctl{display:inline-flex;align-items:center;justify-content:flex-end;width:100px;vertical-align:middle}
+.acth-ctl .sel{margin:0 6px}
+td.act .sel{margin:0 6px;vertical-align:middle}
+.hdel{width:32px;height:32px;margin:0 3px;border:0;border-radius:11px;cursor:pointer;line-height:0;display:inline-grid;place-items:center;color:var(--red);
+  background:var(--btn-soft);box-shadow:0 3px 0 #0a0c18;transition:transform .08s,box-shadow .08s}
+.hdel:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.2)}
+.hdel:active:not(:disabled){transform:translateY(3px);box-shadow:0 0 0 #0a0c18}
+.hdel:disabled{opacity:.35;cursor:not-allowed}
+.hdel svg{width:18px;height:18px}
 .bulk label{display:flex;align-items:center;gap:8px;cursor:pointer}
 .bulk .sel{margin:0}
+.bulk{justify-content:space-between}
 #d_lock{width:26px;height:26px;margin:0;accent-color:var(--btn);cursor:pointer;flex:none}
 .f.locked input[type=text]{border-color:var(--green)}
 #sugg{position:absolute;left:0;right:0;top:100%;margin:4px 0 0;padding:4px;list-style:none;z-index:20;max-height:260px;overflow-y:auto;
@@ -155,6 +166,10 @@ td.act{width:150px}
   .tablewrap td.act{display:flex;justify-content:flex-end;gap:8px;padding:6px 8px;width:auto}
   .tablewrap td.act button{width:44px;height:44px;margin:0}
   .tablewrap td.act button svg{width:22px;height:22px}
+  .bulk{display:flex}
+  .hdel{width:44px;height:44px}
+  .hdel svg{width:22px;height:22px}
+  .tablewrap td.act .sel{width:28px;height:28px}
   .tablewrap td input{padding:12px;font-size:16px}
   tr.editing td input{margin:4px 8px 4px 0;width:calc(100% - 8px)}
   .empty{background:#0f1222;border:1px solid var(--line);border-radius:14px}
@@ -209,10 +224,10 @@ td.act{width:150px}
   <section class="card" aria-label="Filas cargadas">
     <div class="row noprint"><h2>Filas cargadas</h2><span class="sp"></span><span class="count" id="count">0 filas</span></div>
     <div class="printonly"><table id="printTable"><thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th></tr></thead><tbody id="printRows"></tbody></table></div>
-    <div class="bulk noprint" id="bulk" hidden><label><input type="checkbox" class="sel" id="selAll"> Todas</label><button class="btn danger" id="bulkDel" type="button" disabled>Eliminar seleccionadas (0)</button></div>
+    <div class="bulk noprint" id="bulkM"><label><input type="checkbox" class="sel" id="selAllM" aria-label="Seleccionar todas las filas"> Todas</label><button type="button" class="hdel" id="bulkDelM" title="Eliminar seleccionadas" aria-label="Eliminar filas seleccionadas" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button></div>
     <div class="tablewrap screenonly">
       <table>
-        <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th class="acth"><span class="acth-t">Acciones</span><span class="acth-ctl"><button type="button" class="hdel" id="bulkDel" title="Eliminar seleccionadas" aria-label="Eliminar filas seleccionadas" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button><input type="checkbox" class="sel" id="selAll" title="Seleccionar o deseleccionar todas" aria-label="Seleccionar o deseleccionar todas las filas"></span></th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
       <div class="empty" id="empty">Todavía no hay filas. Apretá el micrófono y dictá la primera.</div>
@@ -235,10 +250,10 @@ td.act{width:150px}
     <button class="btn main icon" id="q_print" type="button" title="Imprimir" aria-label="Imprimir" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7" rx="1"/><path d="M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/></svg></button>
   </div>
   <div class="msg" id="q_msg"></div>
-  <div class="bulk" id="qBulk" hidden><label><input type="checkbox" class="sel" id="qSelAll"> Todas</label><button class="btn danger" id="qBulkDel" type="button" disabled>Eliminar seleccionadas (0)</button></div>
+  <div class="bulk noprint" id="qBulkM"><label><input type="checkbox" class="sel" id="qSelAllM" aria-label="Seleccionar todas las filas"> Todas</label><button type="button" class="hdel" id="qBulkDelM" title="Eliminar seleccionadas" aria-label="Eliminar filas seleccionadas" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button></div>
   <div class="tablewrap">
     <table>
-      <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Acciones</th></tr></thead>
+      <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th class="acth"><span class="acth-t">Acciones</span><span class="acth-ctl"><button type="button" class="hdel" id="qBulkDel" title="Eliminar seleccionadas" aria-label="Eliminar filas seleccionadas" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button><input type="checkbox" class="sel" id="qSelAll" title="Seleccionar o deseleccionar todas" aria-label="Seleccionar o deseleccionar todas las filas"></span></th></tr></thead>
       <tbody id="q_rows"></tbody>
     </table>
     <div class="empty" id="q_empty">Elegí las fechas y tocá la lupa para traer los datos de la hoja.</div>
@@ -454,16 +469,17 @@ td.act{width:150px}
     var c=document.createElement('input');c.type='checkbox';c.className='sel';c.checked=checked;
     c.title='Seleccionar fila';c.setAttribute('aria-label',label);c.addEventListener('change',function(){onChange(c.checked)});return c;
   }
-  function syncBulk(bar,all,btn,total,n){
-    bar.hidden=!total;btn.disabled=!n;btn.textContent='Eliminar seleccionadas ('+n+')';
-    all.checked=total>0&&n===total;all.indeterminate=n>0&&n<total;
+  function syncBulk(alls,dels,total,n){
+    alls.forEach(function(a){a.disabled=!total;a.checked=total>0&&n===total;a.indeterminate=n>0&&n<total});
+    dels.forEach(function(d){d.disabled=!n;d.title='Eliminar seleccionadas'+(n?' ('+n+')':'')});
   }
   function updateBulk(){
     selRows=selRows.filter(function(r){return state.rows.indexOf(r)>=0});
-    syncBulk($('bulk'),$('selAll'),$('bulkDel'),state.rows.length,selRows.length);
+    syncBulk([$('selAll'),$('selAllM')],[$('bulkDel'),$('bulkDelM')],state.rows.length,selRows.length);
   }
-  $('selAll').addEventListener('change',function(){selRows=this.checked?state.rows.slice():[];renderTable()});
-  $('bulkDel').addEventListener('click',async function(){
+  function on(ids,ev,fn){ids.forEach(function(id){$(id).addEventListener(ev,fn)})}
+  on(['selAll','selAllM'],'change',function(){selRows=this.checked?state.rows.slice():[];renderTable()});
+  on(['bulkDel','bulkDelM'],'click',async function(){
     var n=selRows.length;if(!n)return;
     var ok=await ask('¿Eliminar '+n+(n===1?' fila?':' filas?'),'Se van a borrar las filas seleccionadas de la tabla. No se puede deshacer.','Sí, eliminar',true);
     if(!ok)return;
@@ -519,7 +535,7 @@ td.act{width:150px}
         state.rows.splice(k,1);if(editIdx===k)editIdx=-1;else if(editIdx>k)editIdx--;
         save();say($('sendMsg'),'Fila eliminada.','ok');renderTable();refreshDraftId();
       });
-      ta.appendChild(bd);
+      ta.appendChild(bd);ta.appendChild(ta.firstChild);
       tr.appendChild(ta);tb.appendChild(tr);
     });
     $('empty').hidden=state.rows.length>0;
@@ -681,15 +697,15 @@ td.act{width:150px}
   var selQ=[];
   function updateQBulk(){
     selQ=selQ.filter(function(n){return qRows.some(function(q){return q.row===n})});
-    syncBulk($('qBulk'),$('qSelAll'),$('qBulkDel'),qRows.length,selQ.length);
+    syncBulk([$('qSelAll'),$('qSelAllM')],[$('qBulkDel'),$('qBulkDelM')],qRows.length,selQ.length);
   }
-  $('qSelAll').addEventListener('change',function(){selQ=this.checked?qRows.map(function(q){return q.row}):[];renderQuery()});
-  $('qBulkDel').addEventListener('click',async function(){
+  on(['qSelAll','qSelAllM'],'change',function(){selQ=this.checked?qRows.map(function(q){return q.row}):[];renderQuery()});
+  on(['qBulkDel','qBulkDelM'],'click',async function(){
     var n=selQ.length,m=$('q_msg');if(!n)return;
     var ok=await ask('¿Eliminar '+n+(n===1?' fila?':' filas?'),'Se van a borrar de la hoja de Google las filas seleccionadas, y las que les siguen se van a volver a numerar. No se puede deshacer.','Sí, eliminar',true);
     if(!ok)return;
     var todo=qRows.filter(function(q){return selQ.indexOf(q.row)>=0}).sort(function(a,b){return b.row-a.row}),done=0;
-    $('qBulkDel').disabled=true;
+    $('qBulkDel').disabled=$('qBulkDelM').disabled=true;
     try{
       /* de abajo hacia arriba: borrar una fila solo renumera las que le siguen, así las demás siguen válidas */
       for(var k=0;k<todo.length;k++){
@@ -728,7 +744,7 @@ td.act{width:150px}
       var bd=document.createElement('button');bd.type='button';bd.className='del';bd.innerHTML=QICON.del;
       bd.title='Eliminar fila';bd.setAttribute('aria-label','Eliminar fila '+q.values.id);
       bd.addEventListener('click',function(){deleteQ(i)});
-      ta.appendChild(bd);tr.appendChild(ta);tb.appendChild(tr);
+      ta.appendChild(bd);ta.appendChild(ta.firstChild);tr.appendChild(ta);tb.appendChild(tr);
     });
     updateQBulk();
     $('q_empty').hidden=qRows.length>0;
