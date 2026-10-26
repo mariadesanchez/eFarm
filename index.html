@@ -234,7 +234,6 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     </div>
     <div class="row noprint" id="actions">
       <button class="btn main" id="sendBtn" type="button">Enviar</button>
-      <button class="btn main icon" id="printBtn" type="button" title="Imprimir" aria-label="Imprimir" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7" rx="1"/><path d="M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/></svg></button>
       <span class="msg" id="sendMsg"></span>
     </div>
   </section>
@@ -545,7 +544,6 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     updateBulk();
     $('count').textContent=state.rows.length+(state.rows.length===1?' fila':' filas');
     $('sendBtn').disabled=!state.rows.length||state.sent;
-    $('printBtn').hidden=!state.sent;
     if(state.sent)say($('sendMsg'),state.sentTxt||'Guardado.','ok');
     document.body.classList.toggle('printable',!!state.sent);
   }
@@ -681,10 +679,6 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       say($('sendMsg'),'No se pudo guardar ('+(e&&e.message||'error')+'). Los datos siguen acá. Revisá la hoja antes de reintentar para no duplicar filas.','bad');
       btn.disabled=!state.rows.length;
     }
-  });
-  $('printBtn').addEventListener('click',function(){
-    if(!state.sent)return;
-    window.print();
   });
   /* ---------- consultar la hoja por fechas ---------- */
   var qRows=[],qEdit=-1,printingQuery=false;
