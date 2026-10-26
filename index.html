@@ -544,7 +544,6 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     updateBulk();
     $('count').textContent=state.rows.length+(state.rows.length===1?' fila':' filas');
     $('sendBtn').disabled=!state.rows.length||state.sent;
-    if(state.sent)say($('sendMsg'),'¡Guardado Exitoso!','ok');
     document.body.classList.toggle('printable',!!state.sent);
   }
   function addRow(){
@@ -675,6 +674,8 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       if(window.loadSugg)window.loadSugg();
       state.sent=true;state.sentTxt='¡Guardado Exitoso!';
       save();renderTable();
+      say($('sendMsg'),'¡Guardado Exitoso!','ok');
+      setTimeout(function(){if($('sendMsg').textContent==='¡Guardado Exitoso!')say($('sendMsg'),'')},3000);
     }catch(e){
       say($('sendMsg'),'No se pudo guardar ('+(e&&e.message||'error')+'). Los datos siguen acá. Revisá la hoja antes de reintentar para no duplicar filas.','bad');
       btn.disabled=!state.rows.length;
