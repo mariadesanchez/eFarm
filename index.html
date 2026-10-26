@@ -93,6 +93,11 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
 html{-webkit-text-size-adjust:100%}
 button,.micbtn{touch-action:manipulation}
 #f_descripcion{position:relative}
+.fhead{display:flex;align-items:center;gap:7px;min-height:22px}
+.fhead label{cursor:pointer}
+.fhead .lockl{font-weight:600;font-size:12px}
+#d_lock{width:20px;height:20px;margin:0;accent-color:var(--btn);cursor:pointer;flex:none}
+.f.locked input[type=text]{border-color:var(--green)}
 #sugg{position:absolute;left:0;right:0;top:100%;margin:4px 0 0;padding:4px;list-style:none;z-index:20;max-height:260px;overflow-y:auto;
   background:var(--card);border:1px solid var(--btn);border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.6)}
 #sugg[hidden]{display:none}
@@ -186,7 +191,7 @@ button,.micbtn{touch-action:manipulation}
     <div class="fields">
       <label class="f" id="f_descripcion">Medicamento y dosis<input type="text" id="d_descripcion" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="sugg" aria-expanded="false"><ul id="sugg" role="listbox" hidden></ul></label>
       <label class="f" id="f_cantidad">Cantidad<input type="text" id="d_cantidad" inputmode="numeric" autocomplete="off"></label>
-      <label class="f" id="f_fecha">Fecha<input type="text" id="d_fecha" placeholder="DD/MM/AAAA" autocomplete="off"></label>
+      <div class="f" id="f_fecha"><div class="fhead"><input type="checkbox" id="d_lock"><label for="d_fecha">Fecha</label><label for="d_lock" class="lockl">· misma para todas</label></div><input type="text" id="d_fecha" placeholder="DD/MM/AAAA" autocomplete="off"></div>
       <label class="f" id="f_matricula">Matrícula<input type="text" id="d_matricula" inputmode="numeric" autocomplete="off"></label>
     </div>
     <div class="row">
@@ -407,10 +412,15 @@ button,.micbtn{touch-action:manipulation}
       $('f_'+f).classList.toggle('done',k<i);
     });
   }
+  /* con el check "misma para todas" y una fecha válida, la fecha no se vuelve a pedir */
+  function dateLocked(){return $('d_lock').checked&&validDate($('d_fecha').value.trim())}
+  function skipLocked(n,dir){return ORDER[n]==='fecha'&&dateLocked()?n+dir:n}
   function advance(){
-    if(cur<ORDER.length-1){setCur(cur+1);return}
+    var n=skipLocked(cur+1,1);
+    if(n<ORDER.length){setCur(n);return}
     if(addRow())setCur(0);
   }
+  function syncLock(){$('f_fecha').classList.toggle('locked',dateLocked())}
 
   /* ---------- id y tabla ---------- */
   function nextId(){
@@ -499,7 +509,7 @@ button,.micbtn{touch-action:manipulation}
     if(!r.id){say($('micMsg'),'Escribí el número de la fila antes de agregar.','warn');$('d_id').focus();return false}
     if(!r.descripcion){say($('micMsg'),'Falta el medicamento.','warn');return false}
     state.rows.push(r);save();renderTable();
-    ORDER.forEach(function(f){$('d_'+f).value=''});
+    ORDER.forEach(function(f){if(f==='fecha'&&dateLocked())return;$('d_'+f).value=''});
     refreshDraftId();
     say($('micMsg'),'Fila '+r.id+' agregada.','ok');
     return true;
@@ -509,7 +519,7 @@ button,.micbtn{touch-action:manipulation}
   function applyUtterance(alts){
     var first=alts[0].trim().replace(/[.,!?]+$/,'');if(!first)return;
     var n=norm(first);
-    if(/^(atras|volver)$/.test(n)){setCur(Math.max(0,cur-1));return}
+    if(/^(atras|volver)$/.test(n)){setCur(Math.max(0,skipLocked(cur-1,-1)));return}
     if(/^(saltar|omitir|siguiente)$/.test(n)){advance();return}
     if(/^(borrar|repetir)$/.test(n)){$('d_'+ORDER[cur]).value='';return}
     var f=ORDER[cur],v;
@@ -732,7 +742,16 @@ button,.micbtn{touch-action:manipulation}
   /* ---------- arranque ---------- */
   $('addBtn').addEventListener('click',function(){if(addRow())setCur(0)});
   $('d_id').addEventListener('input',function(){if(!state.rows.length){state.start=this.value;save()}});
-  $('d_fecha').addEventListener('input',function(){this.value=maskDate(this.value)});
+  $('d_fecha').addEventListener('input',function(){this.value=maskDate(this.value);syncLock();if(state.lockDate)saveLock()});
+  function saveLock(){state.lockDate=$('d_lock').checked?$('d_fecha').value.trim():'';save()}
+  $('d_lock').addEventListener('change',function(){
+    if(this.checked&&!validDate($('d_fecha').value.trim())){
+      this.checked=false;say($('micMsg'),'Primero escribí o dictá la fecha (DD/MM/AAAA) y después tildá "misma para todas".','warn');
+      $('d_fecha').focus();return;
+    }
+    saveLock();syncLock();
+    if(this.checked){say($('micMsg'),'Fecha fija: '+$('d_fecha').value+'. Ya no se pide en las filas siguientes.','ok');if(ORDER[cur]==='fecha')advance()}
+  });
   $('d_fecha').setAttribute('inputmode','numeric');
   /* ---------- sugerencias de medicamento (columna descripcion de la hoja) ---------- */
   var SKEY='efarm-sugg',suggAll=[],suggCur=[],suggSel=-1;
@@ -810,7 +829,9 @@ button,.micbtn{touch-action:manipulation}
     $('d_'+f).addEventListener('focus',function(){setCur(k)});
     $('d_'+f).addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();advance()}});
   });
-  load();renderTable();refreshDraftId();setCur(0);
+  load();renderTable();refreshDraftId();
+  if(state.lockDate&&validDate(state.lockDate)){$('d_fecha').value=state.lockDate;$('d_lock').checked=true;syncLock()}
+  setCur(0);
   /* continuar la numeración desde el último número de la hoja */
   if(APPS_SCRIPT_URL){
     fetch(APPS_SCRIPT_URL).then(function(r){return r.json()}).then(function(r){
