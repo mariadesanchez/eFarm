@@ -94,6 +94,12 @@ html{-webkit-text-size-adjust:100%}
 button,.micbtn{touch-action:manipulation}
 #f_descripcion{position:relative}
 .lockc{display:flex;align-items:flex-end;padding-bottom:12px}
+td.act{width:150px}
+.sel{width:22px;height:22px;margin:0 6px 0 2px;accent-color:var(--btn);cursor:pointer;flex:none;vertical-align:middle}
+.bulk{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-weight:700;font-size:14px;color:var(--muted)}
+.bulk[hidden]{display:none}
+.bulk label{display:flex;align-items:center;gap:8px;cursor:pointer}
+.bulk .sel{margin:0}
 #d_lock{width:26px;height:26px;margin:0;accent-color:var(--btn);cursor:pointer;flex:none}
 .f.locked input[type=text]{border-color:var(--green)}
 #sugg{position:absolute;left:0;right:0;top:100%;margin:4px 0 0;padding:4px;list-style:none;z-index:20;max-height:260px;overflow-y:auto;
@@ -203,6 +209,7 @@ button,.micbtn{touch-action:manipulation}
   <section class="card" aria-label="Filas cargadas">
     <div class="row noprint"><h2>Filas cargadas</h2><span class="sp"></span><span class="count" id="count">0 filas</span></div>
     <div class="printonly"><table id="printTable"><thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th></tr></thead><tbody id="printRows"></tbody></table></div>
+    <div class="bulk noprint" id="bulk" hidden><label><input type="checkbox" class="sel" id="selAll"> Todas</label><button class="btn danger" id="bulkDel" type="button" disabled>Eliminar seleccionadas (0)</button></div>
     <div class="tablewrap screenonly">
       <table>
         <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Acciones</th></tr></thead>
@@ -228,6 +235,7 @@ button,.micbtn{touch-action:manipulation}
     <button class="btn main icon" id="q_print" type="button" title="Imprimir" aria-label="Imprimir" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7" rx="1"/><path d="M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/></svg></button>
   </div>
   <div class="msg" id="q_msg"></div>
+  <div class="bulk" id="qBulk" hidden><label><input type="checkbox" class="sel" id="qSelAll"> Todas</label><button class="btn danger" id="qBulkDel" type="button" disabled>Eliminar seleccionadas (0)</button></div>
   <div class="tablewrap">
     <table>
       <thead><tr><th>Nº</th><th>Medicamento y dosis</th><th>Cantidad</th><th>Fecha</th><th>Matrícula</th><th>Acciones</th></tr></thead>
@@ -441,7 +449,27 @@ button,.micbtn{touch-action:manipulation}
       document.addEventListener('keydown',key);
     });
   }
-  var editIdx=-1;
+  var editIdx=-1,selRows=[];
+  function mkSel(checked,label,onChange){
+    var c=document.createElement('input');c.type='checkbox';c.className='sel';c.checked=checked;
+    c.title='Seleccionar fila';c.setAttribute('aria-label',label);c.addEventListener('change',function(){onChange(c.checked)});return c;
+  }
+  function syncBulk(bar,all,btn,total,n){
+    bar.hidden=!total;btn.disabled=!n;btn.textContent='Eliminar seleccionadas ('+n+')';
+    all.checked=total>0&&n===total;all.indeterminate=n>0&&n<total;
+  }
+  function updateBulk(){
+    selRows=selRows.filter(function(r){return state.rows.indexOf(r)>=0});
+    syncBulk($('bulk'),$('selAll'),$('bulkDel'),state.rows.length,selRows.length);
+  }
+  $('selAll').addEventListener('change',function(){selRows=this.checked?state.rows.slice():[];renderTable()});
+  $('bulkDel').addEventListener('click',async function(){
+    var n=selRows.length;if(!n)return;
+    var ok=await ask('¿Eliminar '+n+(n===1?' fila?':' filas?'),'Se van a borrar las filas seleccionadas de la tabla. No se puede deshacer.','Sí, eliminar',true);
+    if(!ok)return;
+    state.rows=state.rows.filter(function(r){return selRows.indexOf(r)<0});selRows=[];editIdx=-1;
+    save();say($('sendMsg'),n+(n===1?' fila eliminada.':' filas eliminadas.'),'ok');renderTable();refreshDraftId();
+  });
   function startEdit(i){editIdx=i;renderTable();var f=$('e_descripcion');if(f)f.focus()}
   async function saveEdit(i){
     var r=state.rows[i],nv={};
@@ -475,6 +503,9 @@ button,.micbtn{touch-action:manipulation}
         tr.appendChild(td);
       });
       var ta=document.createElement('td');ta.className='act';
+      ta.appendChild(mkSel(selRows.indexOf(r)>=0,'Seleccionar fila '+(i+1),function(on){
+        var k=selRows.indexOf(r);if(on&&k<0)selRows.push(r);else if(!on&&k>=0)selRows.splice(k,1);updateBulk();
+      }));
       var be=document.createElement('button');be.type='button';be.innerHTML=editing?ICON.ok:ICON.edit;
       be.className='ed';be.title=editing?'Guardar cambios':'Editar fila';be.setAttribute('aria-label',(editing?'Guardar cambios de la fila ':'Editar fila ')+(i+1));
       be.addEventListener('click',function(){editing?saveEdit(i):startEdit(i)});
@@ -495,6 +526,7 @@ button,.micbtn{touch-action:manipulation}
     $('empty').textContent=state.sent?'Guardado. La tabla está lista para una nueva carga.':'Todavía no hay filas. Apretá el micrófono y dictá la primera.';
     var pr=$('printRows');pr.innerHTML='';
     (state.printRows||[]).forEach(function(r){var tr=document.createElement('tr');VIEW.forEach(function(c){var td=document.createElement('td');td.textContent=r[c]||'';tr.appendChild(td)});pr.appendChild(tr)});
+    updateBulk();
     $('count').textContent=state.rows.length+(state.rows.length===1?' fila':' filas');
     $('sendBtn').disabled=!state.rows.length||state.sent;
     $('printBtn').hidden=!state.sent;
@@ -646,6 +678,30 @@ button,.micbtn{touch-action:manipulation}
     del:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>'
   };
   function fmtISO(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+  var selQ=[];
+  function updateQBulk(){
+    selQ=selQ.filter(function(n){return qRows.some(function(q){return q.row===n})});
+    syncBulk($('qBulk'),$('qSelAll'),$('qBulkDel'),qRows.length,selQ.length);
+  }
+  $('qSelAll').addEventListener('change',function(){selQ=this.checked?qRows.map(function(q){return q.row}):[];renderQuery()});
+  $('qBulkDel').addEventListener('click',async function(){
+    var n=selQ.length,m=$('q_msg');if(!n)return;
+    var ok=await ask('¿Eliminar '+n+(n===1?' fila?':' filas?'),'Se van a borrar de la hoja de Google las filas seleccionadas, y las que les siguen se van a volver a numerar. No se puede deshacer.','Sí, eliminar',true);
+    if(!ok)return;
+    var todo=qRows.filter(function(q){return selQ.indexOf(q.row)>=0}).sort(function(a,b){return b.row-a.row}),done=0;
+    $('qBulkDel').disabled=true;
+    try{
+      /* de abajo hacia arriba: borrar una fila solo renumera las que le siguen, así las demás siguen válidas */
+      for(var k=0;k<todo.length;k++){
+        say(m,'Eliminando '+(k+1)+' de '+todo.length+'…');
+        var res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body:JSON.stringify({token:TOKEN,action:'delete',row:todo[k].row,expectId:todo[k].values.id})}).then(function(r){return r.json()});
+        if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
+        done++;
+      }
+    }catch(e){selQ=[];await runQuery();say(m,'Se eliminaron '+done+' de '+todo.length+'. Se detuvo: '+(e&&e.message||'error'),'bad');syncStart();return}
+    selQ=[];await runQuery();say(m,done+(done===1?' fila eliminada.':' filas eliminadas.')+' '+m.textContent,'ok');syncStart();
+  });
   function renderQuery(){
     var tb=$('q_rows');tb.innerHTML='';
     qRows.forEach(function(q,i){
@@ -662,6 +718,9 @@ button,.micbtn{touch-action:manipulation}
         tr.appendChild(td);
       });
       var ta=document.createElement('td');ta.className='act';
+      ta.appendChild(mkSel(selQ.indexOf(q.row)>=0,'Seleccionar fila '+q.values.id,function(on){
+        var k=selQ.indexOf(q.row);if(on&&k<0)selQ.push(q.row);else if(!on&&k>=0)selQ.splice(k,1);updateQBulk();
+      }));
       var be=document.createElement('button');be.type='button';be.className='ed';be.innerHTML=editing?QICON.ok:QICON.edit;
       be.title=editing?'Guardar cambios':'Editar fila';be.setAttribute('aria-label',(editing?'Guardar cambios de la fila ':'Editar fila ')+q.values.id);
       be.addEventListener('click',function(){if(editing)saveQEdit(i);else{qEdit=i;renderQuery();var f=$('qe_descripcion');if(f)f.focus()}});
@@ -671,6 +730,7 @@ button,.micbtn{touch-action:manipulation}
       bd.addEventListener('click',function(){deleteQ(i)});
       ta.appendChild(bd);tr.appendChild(ta);tb.appendChild(tr);
     });
+    updateQBulk();
     $('q_empty').hidden=qRows.length>0;
     $('q_print').hidden=!qRows.length;
   }
@@ -685,7 +745,7 @@ button,.micbtn{touch-action:manipulation}
       var url=APPS_SCRIPT_URL+'?action=list&from='+f+'&to='+t+'&token='+encodeURIComponent(TOKEN);
       var res=await fetch(url).then(function(r){return r.json()});
       if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
-      qRows=res.rows||[];qEdit=-1;renderQuery();
+      qRows=res.rows||[];qEdit=-1;selQ=[];renderQuery();
       var txt=qRows.length+(qRows.length===1?' fila encontrada.':' filas encontradas.');
       if(res.skipped)txt+=' '+res.skipped+(res.skipped===1?' fila de la hoja tiene':' filas de la hoja tienen')+' una fecha que no se puede leer y no se muestra.';
       say(m,txt,qRows.length?'ok':'warn');
@@ -749,6 +809,7 @@ button,.micbtn{touch-action:manipulation}
       this.checked=false;say($('micMsg'),'Primero escribí o dictá la fecha (DD/MM/AAAA) y después tildá "misma para todas".','warn');
       $('d_fecha').focus();return;
     }
+    if(!this.checked){$('d_fecha').value='';saveLock();syncLock();say($('micMsg'),'Fecha borrada. Ingresá la nueva.','ok');$('d_fecha').focus();return}
     saveLock();syncLock();
     if(this.checked){say($('micMsg'),'Fecha fija: '+$('d_fecha').value+'. Ya no se pide en las filas siguientes.','ok');if(ORDER[cur]==='fecha')advance()}
   });
