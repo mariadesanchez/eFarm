@@ -90,6 +90,59 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
 #dlg p{margin:0;color:var(--muted);font-weight:700}
 #dlg .btns{display:flex;gap:14px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px}
 @media (max-width:820px){.fields{grid-template-columns:1fr 1fr}.fields .f:first-child{grid-column:1/-1}}
+html{-webkit-text-size-adjust:100%}
+button,.micbtn{touch-action:manipulation}
+@media screen and (max-width:640px){
+  body{padding-top:14px;padding-bottom:40px}
+  .wrap{gap:14px}
+  header{gap:10px}
+  header svg{width:42px;height:42px}
+  header h1{font-size:26px}
+  header p{font-size:13px}
+  .card{padding:16px;border-radius:16px;gap:14px}
+  #querySec{margin-top:14px!important}
+  .fields{grid-template-columns:1fr}
+  .micbtn{width:56px;height:56px}
+  .micbtn svg{width:26px;height:26px}
+  .top{flex-wrap:nowrap}
+  .live{min-width:0}
+  .row{gap:10px}
+  .id-in{flex:1 1 100%;flex-wrap:wrap;justify-content:space-between}
+  .id-in input,.id-in input[type=date]{flex:1;width:auto;min-width:0;max-width:60%}
+  .row>.btn.main:not(.icon){flex:1}
+  button.btn{min-height:44px;padding:10px 18px;font-size:16px}
+  button.btn.icon{min-width:48px}
+  #q_go{flex:none}
+  #dlg{align-items:flex-end;padding:12px}
+  #dlg .box{padding:20px;border-radius:18px}
+  #dlg .btns{flex-direction:column-reverse}
+  #dlg .btns .btn{width:100%}
+
+  /* tablas -> tarjetas */
+  .tablewrap{overflow:visible;border:0;background:transparent}
+  .tablewrap table{min-width:0;display:block}
+  .tablewrap thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .tablewrap tbody{display:flex;flex-direction:column;gap:12px}
+  .tablewrap tbody tr,.tablewrap tbody tr:nth-child(even){display:flex;flex-direction:column;background:#0f1222;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .tablewrap tbody tr.editing,.tablewrap tbody tr.editing:nth-child(even){background:var(--accent-soft);border-color:var(--btn)}
+  .tablewrap td{display:grid;grid-template-columns:104px 1fr;align-items:center;border-top:1px solid #23284a;width:auto}
+  .tablewrap td:first-child{border-top:0}
+  .tablewrap td::before{content:attr(data-l);padding:0 0 0 12px;font-size:12px;font-weight:800;color:var(--muted)}
+  .tablewrap td:nth-child(1)::before{content:"Nº"}
+  .tablewrap td:nth-child(2)::before{content:"Medicamento"}
+  .tablewrap td:nth-child(3)::before{content:"Cantidad"}
+  .tablewrap td:nth-child(4)::before{content:"Fecha"}
+  .tablewrap td:nth-child(5)::before{content:"Matrícula"}
+  .tablewrap td:nth-child(6)::before{content:none}
+  .tablewrap td.idc{width:auto}
+  .tablewrap td.act{display:flex;justify-content:flex-end;gap:8px;padding:6px 8px;width:auto}
+  .tablewrap td.act button{width:44px;height:44px;margin:0}
+  .tablewrap td.act button svg{width:22px;height:22px}
+  .tablewrap td input{padding:12px;font-size:16px}
+  tr.editing td input{margin:4px 8px 4px 0;width:calc(100% - 8px)}
+  .empty{background:#0f1222;border:1px solid var(--line);border-radius:14px}
+  .tablewrap .empty[hidden]{display:none}
+}
 @media print{
   html{color-scheme:light}
   body{background:#fff!important;color:#000;padding:0}
@@ -236,16 +289,18 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
     veintiseis:26,veintisiete:27,veintiocho:28,veintinueve:29,treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,noventa:90,
     cien:100,ciento:100,doscientos:200,trescientos:300,cuatrocientos:400,quinientos:500,seiscientos:600,setecientos:700,ochocientos:800,novecientos:900};
   function isNum(w){return NUMW[w]!==undefined}
+  /* orden de cada número: después de "ciento" puede venir "veinte", después de "veinte" un "dos"; "dos dos" son dos números */
+  function place(n){return n>=100?3:(n>=20?2:1)}
   function numberWords(text){
     var tk=text.split(/\s+/).filter(Boolean),out=[],i=0;
     while(i<tk.length){
       var w=norm(tk[i]);
       if(isNum(w)||(w==='mil'&&false)){
-        var total=0,cur=0,j=i,used=0;
+        var total=0,cur=0,j=i,used=0,lastP=4;
         while(j<tk.length){
           var x=norm(tk[j]);
-          if(isNum(x)){cur+=NUMW[x];j++;used++}
-          else if(x==='mil'){total+=(cur||1)*1000;cur=0;j++;used++}
+          if(isNum(x)){if(place(NUMW[x])>=lastP)break;cur+=NUMW[x];lastP=place(NUMW[x]);j++;used++}
+          else if(x==='mil'){total+=(cur||1)*1000;cur=0;lastP=4;j++;used++}
           else if(x==='y'&&j+1<tk.length&&isNum(norm(tk[j+1]))&&used>0){j++}
           else break;
         }
@@ -278,8 +333,8 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
     return {text:s.charAt(0).toUpperCase()+s.slice(1),score:score};
   }
   function parseQty(t){
-    var s=numberWords(t.trim()),m=s.match(/\d+/);
-    return m?m[0]:t.trim();
+    var s=numberWords(t.trim()),m=s.match(/\d+/g);
+    return m?m[m.length-1]:t.trim();
   }
   var MES={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
   function dateWords(tk){
@@ -376,7 +431,6 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
     VIEW.forEach(function(c){nv[c]=$('e_'+c).value.trim()});
     if(nv.fecha&&!validDate(nv.fecha)){say($('sendMsg'),'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('e_fecha').focus();return}
     if(!nv.id){say($('sendMsg'),'El número de fila no puede quedar vacío.','warn');$('e_id').focus();return}
-    if(!(await ask('¿Guardar los cambios?','Se va a modificar la fila '+r.id+'.','Sí, guardar')))return;
     VIEW.forEach(function(c){r[c]=nv[c]});
     editIdx=-1;save();say($('sendMsg'),'Fila '+r.id+' actualizada.','ok');renderTable();refreshDraftId();
   }
@@ -474,7 +528,14 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
   /* ---------- micrófono ---------- */
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition,rec=null,listening=false,wantOn=false;
   function setMic(on){listening=on;var t=on?'Escuchando… tocá para parar':'Empezar a dictar';$('micBtn').classList.toggle('on',on);$('micTxt').textContent=t;$('micBtn').title=t}
-  var noSpeech=0,lastText='',commitTimer=null,SILENCE_MS=600,FECHA_SILENCE_MS=1600;
+  var noSpeech=0,lastText='',commitTimer=null,SILENCE_MS=600,FECHA_SILENCE_MS=1600,QTY_SILENCE_MS=250;
+  /* cuánto esperar en silencio antes de tomar lo dictado */
+  function waitFor(t){
+    var f=ORDER[cur];
+    if(f==='fecha')return FECHA_SILENCE_MS;
+    if(f==='cantidad'&&/^\d+$/.test(parseQty(t)))return QTY_SILENCE_MS;
+    return SILENCE_MS;
+  }
   function clearCommit(){if(commitTimer){clearTimeout(commitTimer);commitTimer=null}lastText=''}
   function commitEarly(){
     var t=lastText;clearCommit();
@@ -499,7 +560,7 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
       }
       if(interim){
         $('live').textContent=interim;
-        if(interim!==lastText){lastText=interim;clearTimeout(commitTimer);commitTimer=setTimeout(commitEarly,ORDER[cur]==='fecha'?FECHA_SILENCE_MS:SILENCE_MS)}
+        if(interim!==lastText){lastText=interim;clearTimeout(commitTimer);commitTimer=setTimeout(commitEarly,waitFor(interim))}
       }
     };
     rec.onerror=function(ev){
@@ -618,7 +679,6 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
     VIEW.forEach(function(c){nv[c]=$('qe_'+c).value.trim()});
     if(nv.fecha&&!validDate(nv.fecha)){say(m,'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('qe_fecha').focus();return}
     if(!nv.id){say(m,'El número de fila no puede quedar vacío.','warn');$('qe_id').focus();return}
-    if(!(await ask('¿Guardar los cambios?','Se va a modificar la fila '+q.values.id+' en la hoja de Google.','Sí, guardar')))return;
     say(m,'Guardando…');
     try{
       var res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
