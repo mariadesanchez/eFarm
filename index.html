@@ -96,7 +96,7 @@ button,.micbtn{touch-action:manipulation}
 #sugg{position:absolute;left:0;right:0;top:100%;margin:4px 0 0;padding:4px;list-style:none;z-index:20;max-height:260px;overflow-y:auto;
   background:var(--card);border:1px solid var(--btn);border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.6)}
 #sugg[hidden]{display:none}
-#sugg li{padding:11px 12px;border-radius:8px;color:#fff;font-weight:700;font-size:15px;cursor:pointer;min-height:44px;display:flex;align-items:center}
+#sugg li{padding:11px 12px;border-radius:8px;color:#fff;font-weight:700;font-size:15px;cursor:pointer;min-height:44px;display:block;line-height:1.3}
 #sugg li.on,#sugg li:hover{background:var(--accent-soft)}
 #sugg mark{background:none;color:var(--green);font-weight:800}
 @media screen and (max-width:640px){
@@ -616,6 +616,7 @@ button,.micbtn{touch-action:manipulation}
       if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
       var lastId=parseInt(state.rows[state.rows.length-1].id,10);
       state.printRows=state.rows.slice();state.rows=[];if(!isNaN(lastId))state.start=String(lastId+1);
+      if(window.loadSugg)window.loadSugg();
       state.sent=true;state.sentTxt='Guardado: '+res.added+(res.added===1?' fila agregada':' filas agregadas')+' a la hoja.';
       save();renderTable();
     }catch(e){
@@ -738,7 +739,7 @@ button,.micbtn{touch-action:manipulation}
   try{var sc=JSON.parse(localStorage.getItem(SKEY)||'[]');if(Array.isArray(sc))suggAll=sc}catch(e){}
   function suggPool(){
     var seen={},out=[];
-    state.rows.map(function(r){return r.descripcion}).concat(suggAll).forEach(function(t){
+    state.rows.map(function(r){return r.descripcion}).concat(suggAll,DRUGS).forEach(function(t){
       t=String(t||'').replace(/\s+/g,' ').trim();var k=t.toLowerCase();
       if(t&&!seen[k]){seen[k]=1;out.push(t)}
     });
@@ -784,11 +785,27 @@ button,.micbtn{touch-action:manipulation}
     else if(e.key==='Enter'&&suggSel>=0){e.preventDefault();e.stopImmediatePropagation();suggPick(suggSel)}
     else if(e.key==='Tab'&&suggSel>=0){e.preventDefault();suggPick(suggSel)}
   });
-  if(APPS_SCRIPT_URL){
+  function loadSugg(){
+    if(!APPS_SCRIPT_URL)return;
     fetch(APPS_SCRIPT_URL+'?action=suggest&token='+encodeURIComponent(TOKEN)).then(function(r){return r.json()}).then(function(r){
-      if(r&&r.ok&&Array.isArray(r.items)){suggAll=r.items;try{localStorage.setItem(SKEY,JSON.stringify(suggAll))}catch(e){}}
+      if(r&&r.ok&&Array.isArray(r.items))return r.items;
+      /* Apps Script sin la acción "suggest" (no republicado): se arma con la consulta por fechas */
+      return fetch(APPS_SCRIPT_URL+'?action=list&from=2000-01-01&to=2100-12-31&token='+encodeURIComponent(TOKEN)).then(function(r){return r.json()}).then(function(r){
+        if(!r||!r.ok||!Array.isArray(r.rows))return null;
+        var cnt={},names={};
+        r.rows.forEach(function(q){
+          var t=String(q.values.descripcion||'').replace(/\s+/g,' ').trim(),k=t.toLowerCase();
+          if(t){cnt[k]=(cnt[k]||0)+1;if(!names[k])names[k]=t}
+        });
+        return Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]}).slice(0,3000).map(function(k){return names[k]});
+      });
+    }).then(function(items){
+      if(items){suggAll=items;try{localStorage.setItem(SKEY,JSON.stringify(suggAll))}catch(e){}}
     }).catch(function(){});
   }
+  window.loadSugg=loadSugg;
+  loadSugg();
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)loadSugg()});
   ORDER.forEach(function(f,k){
     $('d_'+f).addEventListener('focus',function(){setCur(k)});
     $('d_'+f).addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();advance()}});
