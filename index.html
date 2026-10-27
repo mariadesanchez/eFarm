@@ -218,6 +218,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       <label class="f" id="f_apellido">Apellido<input type="text" id="d_apellido" autocomplete="off" autocapitalize="words"></label>
     </div>
     <div class="row">
+      <button class="btn" id="sisaBtn" type="button" title="Abre el buscador de profesionales de SISA en otra pestaña">Consultar matrícula en SISA ↗</button>
       <span class="sp"></span>
       <button class="btn main" id="addBtn" type="button">+ Fila</button>
     </div>
@@ -911,6 +912,12 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     }else if(apeAuto){ap.value='';apeAuto=false}
   }
   $('d_matricula').addEventListener('input',fillApellido);
+  $('sisaBtn').addEventListener('click',function(){
+    var m=$('d_matricula').value.replace(/\D/g,'');
+    if(m&&navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(m).catch(function(){});
+    window.open('https://sisa.msal.gov.ar/sisa/#sisa','_blank','noopener');
+    say($('micMsg'),m?'Matrícula '+m+' copiada: pegala en el buscador de SISA (REFEPS → Matrícula).':'En SISA elegí REFEPS y buscá por matrícula, documento o apellido.','ok');
+  });
   $('d_apellido').addEventListener('input',function(){apeAuto=false});
   function loadMat(){
     if(!APPS_SCRIPT_URL)return;
