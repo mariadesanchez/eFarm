@@ -1,5 +1,5 @@
 // Apps Script ligado a la hoja "Libro electronico farmacia Pasquiali".
-// Pestaña: datos. Columnas: id, descripcion, cantidad, fecha, matricula.
+// Pestaña: datos. Columnas: id, descripcion, cantidad, fecha, matricula, apellido.
 var TAB = 'datos';
 var TOKEN = ''; // opcional: si lo completás, poné el mismo valor en TOKEN de index.html
 
@@ -31,7 +31,7 @@ function doGet(e) {
     var from = isoToDate_(p.from), to = isoToDate_(p.to);
     var rows = [], skipped = 0;
     if (last > 1) {
-      var data = sh.getRange(2, 1, last - 1, 5).getValues();
+      var data = sh.getRange(2, 1, last - 1, 6).getValues();
       data.forEach(function (r, i) {
         if (r.every(function (c) { return c === '' })) return;
         var d = parseDate_(r[3]);
@@ -39,7 +39,7 @@ function doGet(e) {
         if (d >= from && d <= to) {
           var v = r.map(function (c) { return c instanceof Date ? fmt_(c) : String(c); });
           v[3] = fmt_(d);
-          rows.push({ row: i + 2, values: { id: v[0], descripcion: v[1], cantidad: v[2], fecha: v[3], matricula: v[4] } });
+          rows.push({ row: i + 2, values: { id: v[0], descripcion: v[1], cantidad: v[2], fecha: v[3], matricula: v[4], apellido: v[5] } });
         }
       });
     }
@@ -47,7 +47,7 @@ function doGet(e) {
   }
 
   var lastId = last > 1 ? sh.getRange(last, 1).getValue() : null;
-  return out_({ ok: true, lastId: lastId, rows: Math.max(0, last - 1) });
+  return out_({ ok: true, lastId: lastId, rows: Math.max(0, last - 1), cols: 6 });
 }
 
 function doPost(e) {
@@ -78,10 +78,10 @@ function doPost(e) {
 
     if (body.action === 'update') {
       var row = Number(body.row), v = body.values;
-      if (!row || row < 2 || row > sh.getLastRow() || !v || v.length !== 5) return out_({ ok: false, error: 'fila inválida' });
+      if (!row || row < 2 || row > sh.getLastRow() || !v || v.length !== 6) return out_({ ok: false, error: 'fila inválida' });
       // seguridad: la fila debe seguir siendo la misma que se mostró
       if (String(sh.getRange(row, 1).getValue()) !== String(body.expectId)) return out_({ ok: false, error: 'la fila cambió en la hoja, volvé a buscar' });
-      var rg = sh.getRange(row, 1, 1, 5);
+      var rg = sh.getRange(row, 1, 1, 6);
       rg.setNumberFormat('@');
       rg.setValues([v.map(function (x) { return String(x == null ? '' : x); })]);
       return out_({ ok: true, row: row });
@@ -90,10 +90,10 @@ function doPost(e) {
     var rows = body.rows;
     if (!rows || !rows.length) return out_({ ok: false, error: 'sin filas' });
     var start = sh.getLastRow() + 1;
-    var range = sh.getRange(start, 1, rows.length, 5);
+    var range = sh.getRange(start, 1, rows.length, 6);
     range.setNumberFormat('@'); // texto: evita que fechas o matrículas se conviertan
     range.setValues(rows.map(function (r) {
-      return [r[0], r[1], r[2], r[3], r[4]].map(function (v) { return String(v == null ? '' : v); });
+      return [r[0], r[1], r[2], r[3], r[4], r[5]].map(function (v) { return String(v == null ? '' : v); });
     }));
     return out_({ ok: true, added: rows.length, firstRow: start, lastRow: start + rows.length - 1 });
   } catch (err) {
