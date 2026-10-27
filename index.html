@@ -93,6 +93,7 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
 html{-webkit-text-size-adjust:100%}
 button,.micbtn{touch-action:manipulation}
 #f_descripcion{position:relative}
+.sisabm{font-size:12px;color:var(--muted,#8a93b2);text-decoration:none;border:1px dashed currentColor;border-radius:8px;padding:6px 10px;cursor:grab}
 .lockc{display:flex;align-items:flex-end;padding-bottom:12px}
 td.act{width:176px;text-align:right;padding-right:8px}
 .sel{width:22px;height:22px;margin:0 6px 0 2px;accent-color:var(--btn);cursor:pointer;flex:none;vertical-align:middle}
@@ -219,6 +220,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     </div>
     <div class="row">
       <button class="btn" id="sisaBtn" type="button" title="Abre el buscador de profesionales de SISA en otra pestaña">Consultar matrícula en SISA ↗</button>
+      <a id="sisaBm" class="sisabm" href="#" title="Arrastrá este enlace a la barra de marcadores de tu navegador">⭐ SISA→matrícula</a>
       <span class="sp"></span>
       <button class="btn main" id="addBtn" type="button">+ Fila</button>
     </div>
@@ -912,11 +914,15 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     }else if(apeAuto){ap.value='';apeAuto=false}
   }
   $('d_matricula').addEventListener('input',fillApellido);
+  var SISA_BM="(function(){var m=(window.name.match(/^efarm:(\\d+)/)||[])[1]||'';if(!m){m=(prompt('Matr\u00edcula a buscar en SISA:')||'').replace(/\\D/g,'');if(!m)return}function find(sel,re){var a=document.querySelectorAll(sel);for(var i=0;i<a.length;i++){if(re.test(a[i].textContent||a[i].placeholder||'')&&a[i].offsetParent)return a[i]}}function lab(t){var a=document.querySelectorAll('label');for(var i=0;i<a.length;i++){if(a[i].textContent.trim()===t&&a[i].offsetParent)return a[i]}}function wait(f,cb,n){var r=f();if(r)return cb(r);if((n||0)>60)return alert('No encontr\u00e9 el paso en SISA; segu\u00ed a mano.');setTimeout(function(){wait(f,cb,(n||0)+1)},250)}function clk(e){e.scrollIntoView&&e.scrollIntoView({block:'center'});['mousedown','mouseup','click'].forEach(function(t){e.dispatchEvent(new MouseEvent(t,{bubbles:true,cancelable:true,view:window}))})}function tile(){var a=document.querySelectorAll('*'),b;for(var i=0;i<a.length;i++){var e=a[i];if(e.children.length<=3&&/^\\s*Buscador de Establecimientos y\\s+Profesionales\\s*$/.test(e.textContent)&&e.offsetParent)b=e}return b}function go(){wait(function(){return find('div,span,a,td',/^\\s*REFEPS\\s*Red Federal/)||find('*',/^\\s*REFEPS\\s*$/)},function(r){clk(r);wait(function(){return lab('Matr\u00edcula')},function(l){clk(l);wait(function(){var a=document.querySelectorAll('input[type=text]');for(var k=0;k<a.length;k++)if(a[k].offsetParent&&/documento|matr/i.test(a[k].placeholder))return a[k]},function(inp){inp.focus();inp.value=m;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));wait(function(){return find('a',/^\\s*Buscar\\s*$/)},function(b){setTimeout(function(){clk(b)},300)})})})})}var n=0;(function pre(){var t=tile();if(t){clk(t);setTimeout(go,800)}else if(lab('Matr\\u00edcula'))go();else if(++n>40)alert('No encontr\\u00e9 el buscador en SISA; segu\\u00ed a mano.');else setTimeout(pre,250)})();})();";
+  $('sisaBm').href='javascript:'+encodeURIComponent(SISA_BM);
+  $('sisaBm').addEventListener('click',function(e){e.preventDefault();say($('micMsg'),'No lo toques acá: arrastralo a la barra de marcadores. Después, en SISA, hacé clic en ese marcador.','warn')});
   $('sisaBtn').addEventListener('click',function(){
     var m=$('d_matricula').value.replace(/\D/g,'');
+    var w=window.open('https://sisa.msal.gov.ar/sisa/#sisa','efarm:'+m);
+    if(w)try{w.opener=null}catch(e){}
     if(m&&navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(m).catch(function(){});
-    window.open('https://sisa.msal.gov.ar/sisa/#sisa','_blank','noopener');
-    say($('micMsg'),m?'Matrícula '+m+' copiada: pegala en el buscador de SISA (REFEPS → Matrícula).':'En SISA elegí REFEPS y buscá por matrícula, documento o apellido.','ok');
+    say($('micMsg'),m?'SISA abierto. Con el marcador "SISA→matrícula" se busca sola la '+m+'; si no, pegala (ya está copiada) en REFEPS → Matrícula.':'En SISA elegí REFEPS y buscá por matrícula, documento o apellido.','ok');
   });
   $('d_apellido').addEventListener('input',function(){apeAuto=false});
   function loadMat(){
