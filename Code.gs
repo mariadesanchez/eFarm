@@ -46,6 +46,18 @@ function doGet(e) {
     return out_({ ok: true, rows: rows, skipped: skipped });
   }
 
+  if (p.action === 'matriculas') {
+    // pares [matrícula, apellido] de la hoja, para autocompletar el apellido
+    var pairs = [];
+    if (last > 1) {
+      sh.getRange(2, 5, last - 1, 2).getValues().forEach(function (r) {
+        var m = String(r[0]).trim(), a = String(r[1]).trim();
+        if (m && a) pairs.push([m, a]);
+      });
+    }
+    return out_({ ok: true, items: pairs });
+  }
+
   var lastId = last > 1 ? sh.getRange(last, 1).getValue() : null;
   return out_({ ok: true, lastId: lastId, rows: Math.max(0, last - 1), cols: 6 });
 }

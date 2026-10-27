@@ -440,6 +440,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   function dateLocked(){return $('d_lock').checked&&validDate($('d_fecha').value.trim())}
   function skipLocked(n,dir){return ORDER[n]==='fecha'&&dateLocked()?n+dir:n}
   function advance(){
+    if(ORDER[cur]==='matricula')fillApellido();
     var n=skipLocked(cur+1,1);
     if(n<ORDER.length){setCur(n);return}
     if(addRow())setCur(0);
@@ -556,7 +557,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(!r.id){say($('micMsg'),'Escribí el número de la fila antes de agregar.','warn');$('d_id').focus();return false}
     if(!r.descripcion){say($('micMsg'),'Falta el medicamento.','warn');return false}
     state.rows.push(r);save();renderTable();
-    ORDER.forEach(function(f){if(f==='fecha'&&dateLocked())return;$('d_'+f).value=''});
+    ORDER.forEach(function(f){if(f==='fecha'&&dateLocked())return;$('d_'+f).value=''});apeAuto=false;
     refreshDraftId();
     say($('micMsg'),'Fila '+r.id+' agregada.','ok');
     return true;
@@ -883,8 +884,50 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     else if(e.key==='Enter'&&suggSel>=0){e.preventDefault();e.stopImmediatePropagation();suggPick(suggSel)}
     else if(e.key==='Tab'&&suggSel>=0){e.preventDefault();suggPick(suggSel)}
   });
+  /* ---------- apellido según la matrícula (columnas matricula y apellido de la hoja) ---------- */
+  var MKEY='efarm-mat',matPairs=[],apeAuto=false;
+  try{var mc=JSON.parse(localStorage.getItem(MKEY)||'[]');if(Array.isArray(mc))matPairs=mc}catch(e){}
+  function matKey(v){return String(v||'').replace(/\D/g,'')}
+  /* el apellido más usado para esa matrícula (sin distinguir mayúsculas); si empatan, el más reciente */
+  function lookupApellido(mat){
+    var k=matKey(mat);if(!k)return '';
+    var cnt={},last={},n=0;
+    function add(m,a){
+      a=String(a||'').replace(/\s+/g,' ').trim();if(!a||matKey(m)!==k)return;
+      var low=a.toLowerCase();cnt[low]=(cnt[low]||0)+1;last[low]={a:a,i:n++};
+    }
+    matPairs.forEach(function(p){add(p[0],p[1])});
+    state.rows.forEach(function(r){add(r.matricula,r.apellido)});
+    var best=null;
+    Object.keys(cnt).forEach(function(low){
+      if(!best||cnt[low]>cnt[best]||(cnt[low]===cnt[best]&&last[low].i>last[best].i))best=low;
+    });
+    return best?last[best].a:'';
+  }
+  function fillApellido(){
+    var ap=$('d_apellido'),found=lookupApellido($('d_matricula').value);
+    if(found){
+      if(!ap.value.trim()||apeAuto){ap.value=found;apeAuto=true}
+    }else if(apeAuto){ap.value='';apeAuto=false}
+  }
+  $('d_matricula').addEventListener('input',fillApellido);
+  $('d_apellido').addEventListener('input',function(){apeAuto=false});
+  function loadMat(){
+    if(!APPS_SCRIPT_URL)return;
+    fetch(APPS_SCRIPT_URL+'?action=matriculas&token='+encodeURIComponent(TOKEN)).then(function(r){return r.json()}).then(function(r){
+      if(r&&r.ok&&Array.isArray(r.items))return r.items;
+      /* script sin la acción "matriculas": se arma con la consulta por fechas */
+      return fetch(APPS_SCRIPT_URL+'?action=list&from=2000-01-01&to=2100-12-31&token='+encodeURIComponent(TOKEN)).then(function(r){return r.json()}).then(function(r){
+        if(!r||!r.ok||!Array.isArray(r.rows))return null;
+        return r.rows.map(function(q){return [q.values.matricula,q.values.apellido]}).filter(function(p){return p[0]&&p[1]});
+      });
+    }).then(function(items){
+      if(items){matPairs=items;try{localStorage.setItem(MKEY,JSON.stringify(matPairs))}catch(e){}fillApellido()}
+    }).catch(function(){});
+  }
   function loadSugg(){
     if(!APPS_SCRIPT_URL)return;
+    loadMat();
     fetch(APPS_SCRIPT_URL+'?action=suggest&token='+encodeURIComponent(TOKEN)).then(function(r){return r.json()}).then(function(r){
       if(r&&r.ok&&Array.isArray(r.items))return r.items;
       /* Apps Script sin la acción "suggest" (no republicado): se arma con la consulta por fechas */
