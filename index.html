@@ -85,13 +85,6 @@ tr.editing td input{background:#0d0f1c;border:2px solid var(--btn);border-radius
 .printonly{display:none}
 #dlg{position:fixed;inset:0;background:rgba(5,6,16,.75);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
 #dlg[hidden]{display:none}
-#sisaM{position:fixed;inset:0;background:rgba(5,6,16,.8);display:flex;align-items:center;justify-content:center;padding:12px;z-index:60}
-#sisaM[hidden]{display:none}
-#sisaM .box{background:var(--card);border:1px solid var(--line);border-radius:16px;width:100%;max-width:1000px;height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 50px rgba(0,0,0,.6)}
-#sisaM .top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--line)}
-#sisaM .top input{width:140px}
-#sisaM .top .tip{flex:1;min-width:200px;color:var(--muted);font-size:13px;font-weight:700}
-#sisaM iframe{flex:1;border:0;background:#fff;width:100%}
 #dlg .box{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px;max-width:420px;width:100%;box-shadow:0 24px 50px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:12px}
 #dlg h3{margin:0;font-size:21px;font-weight:800;color:#fff}
 #dlg p{margin:0;color:var(--muted);font-weight:700}
@@ -225,7 +218,6 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       <label class="f" id="f_apellido">Apellido<input type="text" id="d_apellido" autocomplete="off" autocapitalize="words"></label>
     </div>
     <div class="row">
-      <button class="btn" id="sisaBtn" type="button" title="Abre el buscador de profesionales de SISA en otra pestaña">Consultar matrícula en SISA ↗</button>
       <span class="sp"></span>
       <button class="btn main" id="addBtn" type="button">+ Fila</button>
     </div>
@@ -279,18 +271,6 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       <button class="btn" id="dlgNo" type="button">Cancelar</button>
       <button class="btn main" id="dlgYes" type="button">Aceptar</button>
     </div>
-  </div>
-</div>
-<div id="sisaM" hidden role="dialog" aria-modal="true" aria-label="Consulta en SISA">
-  <div class="box">
-    <div class="top">
-      <label class="f" style="flex-direction:row;align-items:center;gap:8px">Matrícula<input type="text" id="sisaMat" inputmode="numeric" autocomplete="off"></label>
-      <button class="btn main" id="sisaCopy" type="button">Copiar</button>
-      <span class="tip">En SISA: REFEPS → Matrícula → pegá el número → Buscar.</span>
-      <button class="btn" id="sisaUse" type="button">Usar en el formulario</button>
-      <button class="btn" id="sisaClose" type="button">Cerrar</button>
-    </div>
-    <iframe id="sisaFrame" title="SISA" referrerpolicy="no-referrer"></iframe>
   </div>
 </div>
 <script>
@@ -931,23 +911,6 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     }else if(apeAuto){ap.value='';apeAuto=false}
   }
   $('d_matricula').addEventListener('input',fillApellido);
-  function sisaOpen(){
-    var m=$('d_matricula').value.replace(/\D/g,'');
-    $('sisaMat').value=m;
-    if(!$('sisaFrame').src)$('sisaFrame').src='https://sisa.msal.gov.ar/sisa/#sisa';
-    $('sisaM').hidden=false;
-    if(m)sisaCopy();else $('sisaMat').focus();
-  }
-  function sisaCopy(){
-    var v=$('sisaMat').value.replace(/\D/g,'');
-    if(v&&navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(v).then(function(){$('sisaCopy').textContent='¡Copiada!';setTimeout(function(){$('sisaCopy').textContent='Copiar'},1500)}).catch(function(){});
-  }
-  $('sisaBtn').addEventListener('click',sisaOpen);
-  $('sisaCopy').addEventListener('click',sisaCopy);
-  $('sisaMat').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();sisaCopy()}});
-  $('sisaClose').addEventListener('click',function(){$('sisaM').hidden=true});
-  $('sisaUse').addEventListener('click',function(){var v=$('sisaMat').value.replace(/\D/g,'');if(v){$('d_matricula').value=v;fillApellido()}$('sisaM').hidden=true});
-  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('sisaM').hidden)$('sisaM').hidden=true});
   $('d_apellido').addEventListener('input',function(){apeAuto=false});
   function loadMat(){
     if(!APPS_SCRIPT_URL)return;
