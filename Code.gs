@@ -64,6 +64,9 @@ function ensureLayout_() {
   return sh;
 }
 
+// Para acomodar la hoja ya mismo: en el editor de Apps Script elegí "acomodarHoja" y tocá ▶ Ejecutar.
+function acomodarHoja() { ensureLayout_(); }
+
 // Lee una fecha de la hoja: texto DD/MM/AAAA o fecha real de Sheets. Devuelve Date o null.
 function parseDate_(v) {
   if (v instanceof Date) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
