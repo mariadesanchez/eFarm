@@ -22,7 +22,7 @@ function toSheet_(r) { return [r[0], r[4], r[5], r[3], r[2], '', r[1]]; }
 function fromSheet_(s) { return [s[0], s[6], s[4], s[3], s[1], s[2]]; }
 
 function norm_(t) {
-  return String(t == null ? '' : t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+  return String(t == null ? '' : t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
 }
 
 // Deja la hoja con las columnas nuevas. Si tenía el orden viejo, reordena los datos (con respaldo).
