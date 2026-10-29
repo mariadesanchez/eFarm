@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#8db52f">
+<meta name="theme-color" content="#7ba31f">
 <title>eFarm</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap">
 <style>
@@ -21,12 +21,18 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
 header{display:flex;align-items:center;gap:14px}
-header{position:relative}
-.logo{flex:none;width:62px;height:62px;border-radius:21px;display:grid;place-items:center;font-size:36px;font-weight:900;color:#fff;background:linear-gradient(155deg,#b9dd5a 0,#8db52f 45%,#6f9418 100%);text-shadow:0 3px 0 #4d6a0a,0 5px 6px rgba(0,0,0,.25);box-shadow:0 7px 0 #4d6a0a,0 16px 22px -6px rgba(77,106,10,.7),inset 0 3px 0 #ffffff88,inset 0 -3px 0 #0000001f;transform:rotate(-5deg);margin-right:4px}
-header h1{margin:0;font-size:30px;font-weight:800;color:var(--ink);letter-spacing:-.02em;line-height:1.1}
-header p{margin:2px 0 0;color:var(--muted);font-weight:600}
-.pildoras{position:absolute;right:-6px;top:-8px;width:84px;height:auto;pointer-events:none;filter:drop-shadow(0 10px 8px rgba(77,106,10,.35));animation:flota 5s ease-in-out infinite}
-@keyframes flota{50%{transform:translateY(5px) rotate(2deg)}}
+header{position:relative;overflow:hidden;gap:18px;padding:24px 24px;border-radius:30px;color:#fff;
+  background:radial-gradient(circle at 88% 12%,#d6ef8a 0,#b9dd5a 18%,transparent 42%),linear-gradient(135deg,#5f8412 0,#7ba31f 45%,#9cc43a 100%);
+  box-shadow:0 9px 0 #4d6a0a,0 22px 34px -12px rgba(77,106,10,.65),inset 0 2px 0 #ffffff55}
+header::before{content:"";position:absolute;width:230px;height:230px;border-radius:50%;left:-70px;bottom:-130px;background:#ffffff1c}
+header::after{content:"✚";position:absolute;left:38%;top:-34px;font-size:120px;font-weight:900;color:#ffffff14;transform:rotate(14deg);pointer-events:none}
+header>*{position:relative;z-index:1}
+.logo{flex:none;width:78px;height:78px;border-radius:26px;display:grid;place-items:center;font-size:46px;font-weight:900;color:#6f9418;background:linear-gradient(160deg,#fff 0,#eef5d8 100%);text-shadow:0 2px 0 #ffffff,0 -1px 0 #4d6a0a22;box-shadow:0 8px 0 #c3cf9c,0 18px 24px -8px rgba(30,45,5,.55),inset 0 3px 0 #fff;transform:rotate(-5deg);margin-right:6px}
+header h1{margin:0;font-size:42px;font-weight:800;color:#fff;letter-spacing:-.025em;line-height:1.02;text-shadow:0 3px 0 #4d6a0a88}
+header p{margin:6px 0 0;color:#ffffffe6;font-weight:700;font-size:16px}
+header p::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#fff;margin-right:8px;vertical-align:1px;box-shadow:0 0 0 4px #ffffff40}
+.pildoras{position:absolute;right:14px;top:50%;margin-top:-62px;width:128px;height:auto;pointer-events:none;filter:drop-shadow(0 12px 8px rgba(30,45,5,.4));animation:flota 5s ease-in-out infinite;z-index:1}
+@keyframes flota{50%{transform:translateY(6px) rotate(2deg)}}
 @media(prefers-reduced-motion:reduce){.pildoras{animation:none}}
 .card{background:var(--card);border-radius:26px;padding:22px;border:0;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:16px;min-width:0}
 h2{margin:0;font-size:19px;font-weight:800;color:var(--ink)}
@@ -127,9 +133,9 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   body{padding-top:14px;padding-bottom:40px}
   .wrap{gap:14px}
   header{gap:10px}
-  header .logo{width:50px;height:50px;font-size:29px;border-radius:17px}.pildoras{width:66px}
-  header h1{font-size:23px}
-  header p{font-size:13px}
+  header{padding:18px 16px;border-radius:24px;gap:12px}header .logo{width:60px;height:60px;font-size:35px;border-radius:20px;margin-right:0}.pildoras{width:92px;right:-8px;top:12px;margin-top:0}
+  header h1{font-size:29px}
+  header p{font-size:13px;margin-top:5px;max-width:165px;line-height:1.3}header{padding:22px 16px}
   .card{padding:16px;border-radius:16px;gap:14px}
   #querySec{margin-top:14px!important}
   .fields{grid-template-columns:1fr}
