@@ -16,6 +16,9 @@ App estática (un solo `index.html`) para cargar recetas por voz y enviarlas a G
 
 Cada envío agrega las filas debajo de la última fila de la pestaña `datos`.
 
+Columnas de la hoja (igual que el listado de psicotrópicos): `Nº | Mat. Médico | Ape. Médico | Fecha | Cant. | Proveedor | Producto`.
+El formulario no cambia; `Code.gs` acomoda cada dato en su columna. Si la hoja tiene el orden viejo, la primera vez que se usa la reordena sola y deja una copia en la pestaña `datos_respaldo_…`.
+
 ## Subir a GitHub
 ```
 git init
