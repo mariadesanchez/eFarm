@@ -245,8 +245,15 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       <label class="f" id="f_cantidad">Cantidad<input type="text" id="d_cantidad" inputmode="numeric" autocomplete="off"></label>
       <div class="lockc"><input type="checkbox" id="d_lock" title="Usar la misma fecha en todas las filas" aria-label="Usar la misma fecha en todas las filas"></div>
       <label class="f" id="f_fecha">Fecha<input type="text" id="d_fecha" placeholder="DD/MM/AAAA" autocomplete="off"></label>
-      <label class="f" id="f_matricula">Matrícula<input type="text" id="d_matricula" inputmode="numeric" autocomplete="off"></label>
+      <label class="f" id="f_matricula">
+        <span style="display:flex; justify-content:space-between; align-items:center;">
+          <span>Matrícula</span>
+          <button type="button" id="btn_sisa" title="Consultar en SISA (REFEPS)" style="font:inherit; font-size:11px; font-weight:800; background:var(--btn-soft); color:#8192ff; border:1px solid #5468ff; border-radius:6px; padding:2px 7px; cursor:pointer;">SISA 🔍</button>
+        </span>
+        <input type="text" id="d_matricula" inputmode="numeric" autocomplete="off">
+      </label>
       <label class="f" id="f_apellido">Apellido<input type="text" id="d_apellido" autocomplete="off" autocapitalize="words"></label>
+    <div id="sisa_box" style="display:none; margin-top:8px; padding:10px 14px; background:var(--card); border:1px solid var(--line); border-radius:12px; font-size:13px;"></div>
     </div>
     <div class="row">
       <span class="sp"></span>
@@ -992,5 +999,114 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     }).catch(function(){});
   }
 })();
+
+  /* ---------- SISA Integration ---------- */
+  var SISA_API_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? '/api/sisa' : 'http://localhost:3050/api/sisa';
+  var sisaLoading = false;
+
+  function renderSisaBox(content, isError) {
+    var box = document.getElementById('sisa_box');
+    if (!box) return;
+    if (!content) {
+      box.style.display = 'none';
+      box.innerHTML = '';
+      return;
+    }
+    box.style.display = 'block';
+    box.style.borderColor = isError ? 'var(--red)' : '#5468ff';
+    box.innerHTML = content;
+  }
+
+  function consultarSisa(mat) {
+    var clean = String(mat || document.getElementById('d_matricula').value || '').replace(/\D/g, '');
+    if (!clean) {
+      renderSisaBox('<span style="color:var(--amber);">⚠️ Ingresá un número de matrícula para buscar en SISA.</span>', true);
+      return;
+    }
+    if (sisaLoading) return;
+    sisaLoading = true;
+    var btn = document.getElementById('btn_sisa');
+    if (btn) btn.textContent = 'Buscando...';
+    renderSisaBox('<span style="color:var(--muted);">⏳ Consultando registro SISA (REFEPS) para matrícula <strong>' + clean + '</strong>...</span>');
+
+    fetch(SISA_API_URL + '?matricula=' + encodeURIComponent(clean))
+      .then(function(res) {
+        if (!res.ok) throw new Error('Error al conectar con el servidor SISA (' + res.status + ')');
+        return res.json();
+      })
+      .then(function(data) {
+        sisaLoading = false;
+        if (btn) btn.textContent = 'SISA 🔍';
+        if (!data || !data.ok) {
+          renderSisaBox('<span style="color:var(--red);">❌ ' + (data && data.error ? data.error : 'No se pudo obtener información de SISA') + '</span>', true);
+          return;
+        }
+
+        var list = data.profesionales || [];
+        if (!list.length) {
+          renderSisaBox('<span style="color:var(--amber);">⚠️ No se encontraron profesionales en SISA con la matrícula <strong>' + clean + '</strong>.</span>', true);
+          return;
+        }
+
+        if (list.length === 1) {
+          var p = list[0];
+          document.getElementById('d_apellido').value = p.nombre;
+          apeAuto = true;
+          renderSisaBox(
+            '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+              '<span><strong style="color:var(--green);">✓ SISA verificado:</strong> <strong>' + p.nombre + '</strong> (' + p.tipoDoc + ' ' + p.nroDoc + ')</span>' +
+              '<span style="color:var(--muted); font-size:11px;">Cód SISA: ' + p.codigo + '</span>' +
+            '</div>'
+          );
+        } else {
+          // Multiple results: show selector chips
+          var h = '<div style="margin-bottom:6px;"><strong style="color:#8192ff;">SISA encontró ' + list.length + ' profesionales con matrícula ' + clean + ':</strong> (hacé clic para seleccionar)</div>';
+          h += '<div style="display:flex; flex-wrap:wrap; gap:8px;">';
+          list.forEach(function(p, idx) {
+            h += '<button type="button" class="sisa-pick-btn" data-nombre="' + encodeURIComponent(p.nombre) + '" style="font:inherit; font-size:12px; font-weight:700; background:#22284a; color:#fff; border:1px solid #5468ff; border-radius:8px; padding:6px 10px; cursor:pointer; text-align:left;">' +
+              '👤 ' + p.nombre + ' <span style="color:var(--muted); font-size:11px;">(' + p.tipoDoc + ' ' + p.nroDoc + ')</span>' +
+            '</button>';
+          });
+          h += '</div>';
+          renderSisaBox(h);
+
+          document.querySelectorAll('.sisa-pick-btn').forEach(function(el) {
+            el.addEventListener('click', function() {
+              var nom = decodeURIComponent(this.getAttribute('data-nombre'));
+              document.getElementById('d_apellido').value = nom;
+              apeAuto = true;
+              renderSisaBox('<span style="color:var(--green);">✓ Seleccionado de SISA: <strong>' + nom + '</strong></span>');
+            });
+          });
+        }
+      })
+      .catch(function(err) {
+        sisaLoading = false;
+        if (btn) btn.textContent = 'SISA 🔍';
+        renderSisaBox('<span style="color:var(--red);">❌ No se pudo conectar al servicio SISA local en <code>' + SISA_API_URL + '</code>. Asegurate de tener corriendo <code>node server.js</code> en la terminal.</span>', true);
+      });
+  }
+
+  var btnSisa = document.getElementById('btn_sisa');
+  if (btnSisa) {
+    btnSisa.addEventListener('click', function(e) {
+      e.preventDefault();
+      consultarSisa();
+    });
+  }
+
+  var matInput = document.getElementById('d_matricula');
+  if (matInput) {
+    matInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        var val = this.value.trim();
+        if (val && !document.getElementById('d_apellido').value.trim()) {
+          e.preventDefault();
+          consultarSisa(val);
+        }
+      }
+    });
+  }
+
 </script>
 </body></html>

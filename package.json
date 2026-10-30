@@ -1,0 +1,25 @@
+{
+  "name": "efarm",
+  "version": "1.0.0",
+  "description": "App estática (un solo `index.html`) para cargar recetas por voz y enviarlas a Google Sheets.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "sisa": "node buscar_sisa.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mariadesanchez/eFarm.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mariadesanchez/eFarm/issues"
+  },
+  "homepage": "https://github.com/mariadesanchez/eFarm#readme",
+  "dependencies": {
+    "puppeteer-core": "^25.16.0"
+  }
+}
