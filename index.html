@@ -483,7 +483,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(state.rows.length){var n=parseInt(state.rows[state.rows.length-1].id,10);if(!isNaN(n))return String(n+1)}
     return state.start||'';
   }
-  function refreshDraftId(){var v=nextId();if(document.activeElement!==$('d_id'))$('d_id').value=v}
+  function refreshDraftId(force){var v=nextId();if(force||document.activeElement!==$('d_id'))$('d_id').value=v}
   /* cuadro de confirmación propio (los alert del navegador se bloquean en muchas vistas) */
   function ask(title,text,yesLabel,danger){
     return new Promise(function(resolve){
@@ -589,7 +589,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(!r.descripcion){say($('micMsg'),'Falta el medicamento.','warn');return false}
     state.rows.push(r);save();renderTable();
     ORDER.forEach(function(f){if(f==='fecha'&&dateLocked())return;$('d_'+f).value=''});apeAuto=false;
-    refreshDraftId();
+    refreshDraftId(true);
     say($('micMsg'),'Fila '+r.id+' agregada.','ok');
     return true;
   }
@@ -851,7 +851,8 @@ td.act .sel{margin:0 6px;vertical-align:middle}
 
   /* ---------- arranque ---------- */
   $('addBtn').addEventListener('click',function(){if(addRow())setCur(0)});
-  $('d_id').addEventListener('input',function(){if(!state.rows.length){state.start=this.value;save()}});
+  var idTouched=false;
+  $('d_id').addEventListener('input',function(){idTouched=true;if(!state.rows.length){state.start=this.value;save()}});
   $('d_fecha').addEventListener('input',function(){this.value=maskDate(this.value);syncLock();if(state.lockDate)saveLock()});
   function saveLock(){state.lockDate=$('d_lock').checked?$('d_fecha').value.trim():'';save()}
   $('d_lock').addEventListener('change',function(){
@@ -988,7 +989,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   /* continuar la numeración desde el último número de la hoja */
   if(APPS_SCRIPT_URL){
     fetch(APPS_SCRIPT_URL).then(function(r){return r.json()}).then(function(r){
-      if(r&&r.ok&&r.lastId!=null&&!state.rows.length&&!state.sent){state.start=String(Number(r.lastId)+1);save();refreshDraftId()}
+      if(r&&r.ok&&r.lastId!=null&&!state.rows.length&&!state.sent&&!idTouched){state.start=String(Number(r.lastId)+1);save();refreshDraftId()}
     }).catch(function(){});
   }
 })();
