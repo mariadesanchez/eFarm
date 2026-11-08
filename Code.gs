@@ -29,7 +29,7 @@ function norm_(t) {
 function ensureLayout_() {
   var sh = sheet_();
   var h = sh.getRange(1, 1, 1, NCOLS).getValues()[0];
-  if (norm_(h[1]) === 'matmedico' && norm_(h[6]) === 'producto') return sh;   // ya está en el formato nuevo
+  if (norm_(h[1]) === 'matmedico' && norm_(h[6]) === 'producto') { repararFilas_(sh); return sh; }   // ya está en el formato nuevo
   var viejo = norm_(h[1]) === 'descripcion' || (norm_(h[0]) === 'id' && norm_(h[5]) === 'apellido');
   var vacia = sh.getLastRow() === 0;
   if (!viejo && !vacia) throw new Error('La pestaña "' + TAB + '" tiene un formato que no reconozco; no se modificó nada.');
@@ -62,6 +62,40 @@ function ensureLayout_() {
     lock.releaseLock();
   }
   return sh;
+}
+
+// Una sola vez: filas que quedaron con el orden viejo debajo de los títulos nuevos
+// (Mat. Médico con el medicamento, Cant. con la matrícula, Proveedor con el apellido, Producto vacío).
+// Se detectan porque "Mat. Médico" tiene letras y "Producto" está vacío; se acomodan y queda un respaldo.
+function repararFilas_(sh) {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('filasReparadas') === '1') return;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    if (props.getProperty('filasReparadas') === '1') return;
+    var last = sh.getLastRow();
+    if (last > 1) {
+      var rg = sh.getRange(2, 1, last - 1, NCOLS);
+      var data = rg.getValues();
+      var malas = 0;
+      var nuevas = data.map(function (r) {
+        var mal = /[A-Za-z]/.test(String(r[1])) && String(r[6]).trim() === '';
+        if (!mal) return r;
+        malas++;
+        return toSheet_(r.slice(0, 6).map(function (c) { return c instanceof Date ? fmt_(c) : String(c == null ? '' : c); }));
+      });
+      if (malas) {
+        var ss = SpreadsheetApp.getActive();
+        sh.copyTo(ss).setName('datos_respaldo_filas_' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmm'));
+        rg.setNumberFormat('@');
+        rg.setValues(nuevas);
+      }
+    }
+    props.setProperty('filasReparadas', '1');
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // Para acomodar la hoja ya mismo: en el editor de Apps Script elegí "acomodarHoja" y tocá ▶ Ejecutar.
@@ -119,7 +153,7 @@ function doGet(e) {
 
   var lastId = last > 1 ? sh.getRange(last, 1).getValue() : null;
   // cols = campos que maneja el formulario (6); el index.html lo usa para saber que el script está al día
-  return out_({ ok: true, lastId: lastId, rows: Math.max(0, last - 1), cols: 6 });
+  return out_({ ok: true, lastId: lastId, rows: Math.max(0, last - 1), cols: 6, layout: 2 });
 }
 
 function doPost(e) {

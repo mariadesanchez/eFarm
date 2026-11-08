@@ -702,7 +702,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     btn.disabled=true;say($('sendMsg'),'Guardando…');stopMic();
     try{
       var chk=await fetch(APPS_SCRIPT_URL).then(function(r){return r.json()}).catch(function(){return null});
-      if(chk&&chk.ok&&chk.cols!==COLS.length){say($('sendMsg'),'El script de Google todavía no tiene la columna Apellido: publicá una versión nueva de Code.gs (Implementar → Administrar implementaciones → Nueva versión). No se envió nada.','warn');btn.disabled=!state.rows.length;return}
+      if(chk&&chk.ok&&(chk.cols!==COLS.length||chk.layout!==2)){say($('sendMsg'),'El script de Google está desactualizado y guardaría los datos en las columnas equivocadas: pegá el Code.gs nuevo y publicá una versión nueva (Implementar → Administrar implementaciones → Nueva versión). No se envió nada.','warn');btn.disabled=!state.rows.length;return}
     }catch(e){}
     try{
       var rows=state.rows.map(function(r){return COLS.map(function(c){return r[c]||''})});
