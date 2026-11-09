@@ -715,6 +715,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       save();renderTable();
       say($('sendMsg'),'¡Guardado Exitoso!','ok');
       setTimeout(function(){if($('sendMsg').textContent==='¡Guardado Exitoso!')say($('sendMsg'),'')},3000);
+      idTouched=false;syncStart();
     }catch(e){
       say($('sendMsg'),'No se pudo guardar ('+(e&&e.message||'error')+'). Los datos siguen acá. Revisá la hoja antes de reintentar para no duplicar filas.','bad');
       btn.disabled=!state.rows.length;
@@ -832,9 +833,11 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   }
   /* después de renumerar, el próximo Nº de la carga nueva sale del último de la hoja */
   function syncStart(){
-    if(!APPS_SCRIPT_URL||state.rows.length||state.sent)return;
+    if(!APPS_SCRIPT_URL||state.rows.length)return;
     fetch(APPS_SCRIPT_URL).then(function(r){return r.json()}).then(function(r){
-      if(r&&r.ok&&r.lastId!=null&&r.lastId!==''){state.start=String(Number(r.lastId)+1);save();refreshDraftId()}
+      if(state.rows.length||idTouched)return;
+      var n=Number(r&&r.lastId);
+      if(r&&r.ok&&r.lastId!=null&&r.lastId!==''&&!isNaN(n)){state.start=String(n+1);save();refreshDraftId()}
     }).catch(function(){});
   }
   function printQuery(){
@@ -986,12 +989,8 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   load();renderTable();refreshDraftId();
   if(state.lockDate&&validDate(state.lockDate)){$('d_fecha').value=state.lockDate;$('d_lock').checked=true;syncLock()}
   setCur(0);
-  /* continuar la numeración desde el último número de la hoja */
-  if(APPS_SCRIPT_URL){
-    fetch(APPS_SCRIPT_URL).then(function(r){return r.json()}).then(function(r){
-      if(r&&r.ok&&r.lastId!=null&&!state.rows.length&&!state.sent&&!idTouched){state.start=String(Number(r.lastId)+1);save();refreshDraftId()}
-    }).catch(function(){});
-  }
+  /* el número de la primera fila siempre es el último Nº de la hoja + 1 */
+  syncStart();
 })();
 </script>
 </body></html>
