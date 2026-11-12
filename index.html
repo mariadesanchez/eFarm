@@ -434,11 +434,21 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     return out;
   }
   /* la fecha tiene que ser del mes elegido; si no, aviso con el nombre del mes de la fecha */
-  function mesOk(fecha,tab,foco){
+  function cambiarMes(nombre){var sel=$('d_mes');sel.value=nombre;sel.dispatchEvent(new Event('change'))}
+  /* o.alAceptar (opcional): ofrece cambiar el mes al de la fecha (Aceptar / Cancelar); sin eso, solo avisa */
+  function mesOk(fecha,tab,o){
+    o=o||{};
     if(!fecha||!validDate(fecha)||MESES.indexOf(tab)<0)return true;
     var m=parseInt(fecha.split('/')[1],10)-1;
     if(MESES.indexOf(tab)===m)return true;
-    ask('El mes no coincide','La fecha que escribiste ('+fecha+') es de '+MESES[m]+', pero el mes seleccionado es '+tab+'. Seleccioná el mes '+MESES[m]+' correcto.','Entendido',false,true).then(function(){if(foco)foco.focus()});
+    var puede=!!o.alAceptar&&!$('d_mes').disabled;
+    var txt='La fecha que escribiste ('+fecha+') es de '+MESES[m]+', pero el mes seleccionado es '+tab+'. '+
+      (puede?'¿Querés cambiar el mes a '+MESES[m]+'?':'Seleccioná el mes '+MESES[m]+' correcto.');
+    ask('El mes no coincide',txt,puede?'Aceptar':'Entendido',false,!puede).then(function(si){
+      if(puede&&si){cambiarMes(MESES[m]);o.alAceptar()}
+      else if(puede&&o.alCancelar)o.alCancelar();
+      if(o.foco)o.foco.focus();
+    });
     return false;
   }
   function validDate(v){
@@ -607,7 +617,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(state.sent){state.printRows=[];state.sent=false;state.sentTxt='';say($('sendMsg'),'')}
     if(!state.rows.length&&r.id)state.start=r.id;
     if(r.fecha&&!validDate(r.fecha)){say($('micMsg'),'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('d_fecha').focus();return false}
-    if(!mesOk(r.fecha,mesTab()))return false;
+    if(!mesOk(r.fecha,mesTab(),{foco:$('d_fecha'),alAceptar:function(){}}))return false;
     if(!r.id&&numera()){say($('micMsg'),'Escribí el número de la fila antes de agregar.','warn');$('d_id').focus();return false}
     if(!r.descripcion){say($('micMsg'),'Falta el medicamento.','warn');return false}
     state.rows.push(r);save();renderTable();
@@ -633,7 +643,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     else if(f==='fecha'){
       v=parseDate(first);
       if(!v){say($('micMsg'),'No entendí la fecha ("'+first+'"). Decila completa, por ejemplo "doce de marzo de 2024".','warn');return}
-      if(!mesOk(v,mesTab(),$('d_fecha')))return;
+      if(!mesOk(v,mesTab(),{foco:$('d_fecha'),alAceptar:function(){$('d_fecha').value=v;advance()}}))return;
       $('d_'+f).value=v;advance();
       if(cur>0)say($('micMsg'),'Escuché "'+first+'" y quedó '+v+'. Si no es, tocá el campo y corregila.','ok');
       return;
@@ -886,8 +896,10 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   $('d_fecha').addEventListener('input',function(){
     this.value=maskDate(this.value);
     /* ni bien la fecha está completa se controla que sea del mes elegido */
-    if(this.value.length===10&&!mesOk(this.value,mesTab(),this)){this.value='';$('d_lock').checked=false}
-    syncLock();if(state.lockDate||!$('d_lock').checked)saveLock()});
+    var el=this;
+    if(el.value.length===10)mesOk(el.value,mesTab(),{foco:el,alAceptar:function(){if(state.lockDate)saveLock()},
+      alCancelar:function(){el.value='';$('d_lock').checked=false;syncLock();saveLock()}});
+    syncLock();if(state.lockDate)saveLock()});
   function saveLock(){state.lockDate=$('d_lock').checked?$('d_fecha').value.trim():'';save()}
   $('d_lock').addEventListener('change',function(){
     if(this.checked&&!validDate($('d_fecha').value.trim())){
@@ -1029,7 +1041,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     sel.addEventListener('change',function(){
       state.mes=sel.value;save();idTouched=false;refreshDraftId(true);syncStart();
       var f=$('d_fecha');
-      if(f.value&&!mesOk(f.value,sel.value,f)){f.value='';$('d_lock').checked=false;syncLock();saveLock()}
+      if(f.value)mesOk(f.value,sel.value,{foco:f,alAceptar:function(){},alCancelar:function(){f.value='';$('d_lock').checked=false;syncLock();saveLock()}});
     });
     lk.addEventListener('change',function(){state.mesLock=lk.checked;state.mes=sel.value;save()});
     renderTable();refreshDraftId(true);
