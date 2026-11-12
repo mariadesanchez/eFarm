@@ -721,6 +721,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   $('sendBtn').addEventListener('click',async function(){
     var btn=$('sendBtn');
     if(editIdx>=0){say($('sendMsg'),'Primero guardá (✓) o cancelá los cambios de la fila que estás editando.','warn');return}
+    for(var i=0;i<state.rows.length;i++){if(!mesOk(state.rows[i].fecha,mesTab())){say($('sendMsg'),'No se envió nada: la fila '+(state.rows[i].id||(i+1))+' tiene fecha de otro mes.','warn');return}}
     if(!APPS_SCRIPT_URL){say($('sendMsg'),'Falta configurar la URL de Apps Script en index.html.','bad');return}
     btn.disabled=true;say($('sendMsg'),'Guardando…');stopMic();
     try{
