@@ -121,6 +121,11 @@ td.act .sel{margin:0 6px;vertical-align:middle}
 .bulk label{display:flex;align-items:center;gap:8px;cursor:pointer}
 .bulk .sel{margin:0}
 .bulk{justify-content:space-between}
+.mes-in select{font:inherit;font-size:15px;font-weight:700;color:var(--ink);background:var(--field);border:2px solid var(--line);border-radius:14px;padding:9px 10px;box-shadow:inset 0 3px 0 #0000000d;min-width:130px}
+.mes-in select:disabled{opacity:.6;cursor:not-allowed}
+.mes-in label{cursor:default}
+#d_mes_lock{width:26px;height:26px;margin:0;accent-color:var(--btn);cursor:pointer;flex:none}
+.mes-fix{font-size:13px;color:var(--muted)}
 #d_lock{width:26px;height:26px;margin:0;accent-color:var(--btn);cursor:pointer;flex:none}
 .f.locked input[type=text]{border-color:var(--green)}
 #sugg{position:absolute;left:0;right:0;top:100%;margin:4px 0 0;padding:4px;list-style:none;z-index:20;max-height:260px;overflow-y:auto;
@@ -230,7 +235,9 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   </header>
 
   <section class="card" id="entry" aria-label="Carga por voz">
-    <div class="row"><label class="id-in">Número de la próxima fila <input type="number" id="d_id" min="0" step="1" inputmode="numeric"></label></div>
+    <div class="row"><label class="id-in">Número de la próxima fila <input type="number" id="d_id" min="0" step="1" inputmode="numeric"></label>
+      <div class="id-in mes-in"><label for="d_mes">Mes</label><select id="d_mes" aria-label="Mes al que se envían las filas"></select>
+        <input type="checkbox" id="d_mes_lock" title="Dejar fijo este mes" aria-label="Dejar fijo este mes"><span class="mes-fix">Fijar</span></div></div>
     <div class="top">
       <button class="micbtn" id="micBtn" type="button" title="Empezar a dictar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M9 21h6"/></svg>
@@ -320,6 +327,8 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   var $=function(id){return document.getElementById(id)};
   function load(){try{var s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&Array.isArray(s.rows))state=s}catch(e){}}
   function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+  var MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  function mesTab(){var v=document.getElementById('d_mes');return v&&v.value?v.value:MESES[new Date().getMonth()]}
   function say(el,t,c){el.textContent=t||'';el.className=el.className.replace(/\b(warn|bad|ok)\b/g,'').trim()+(c?' '+c:'')}
   function pad(n){return (n<10?'0':'')+n}
   function norm(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')}
@@ -578,6 +587,8 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     updateBulk();
     $('count').textContent=state.rows.length+(state.rows.length===1?' fila':' filas');
     $('sendBtn').disabled=!state.rows.length||state.sent;
+    if($('d_mes'))$('d_mes').disabled=state.rows.length>0;
+    if($('d_mes'))$('d_mes').title=state.rows.length?'Enviá o eliminá las filas cargadas para cambiar de mes':'';
     document.body.classList.toggle('printable',!!state.sent);
   }
   function addRow(){
@@ -701,12 +712,12 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(!APPS_SCRIPT_URL){say($('sendMsg'),'Falta configurar la URL de Apps Script en index.html.','bad');return}
     btn.disabled=true;say($('sendMsg'),'Guardando…');stopMic();
     try{
-      var chk=await fetch(APPS_SCRIPT_URL).then(function(r){return r.json()}).catch(function(){return null});
-      if(chk&&chk.ok&&(chk.cols!==COLS.length||chk.layout!==2)){say($('sendMsg'),'El script de Google está desactualizado y guardaría los datos en las columnas equivocadas: pegá el Code.gs nuevo y publicá una versión nueva (Implementar → Administrar implementaciones → Nueva versión). No se envió nada.','warn');btn.disabled=!state.rows.length;return}
+      var chk=await fetch(APPS_SCRIPT_URL+'?tab='+encodeURIComponent(mesTab())).then(function(r){return r.json()}).catch(function(){return null});
+      if(chk&&chk.ok&&(chk.cols!==COLS.length||chk.layout!==3)){say($('sendMsg'),'El script de Google está desactualizado y guardaría los datos en las columnas equivocadas: pegá el Code.gs nuevo y publicá una versión nueva (Implementar → Administrar implementaciones → Nueva versión). No se envió nada.','warn');btn.disabled=!state.rows.length;return}
     }catch(e){}
     try{
       var rows=state.rows.map(function(r){return COLS.map(function(c){return r[c]||''})});
-      var res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:TOKEN,rows:rows})}).then(function(r){return r.json()});
+      var res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:TOKEN,tab:mesTab(),rows:rows})}).then(function(r){return r.json()});
       if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
       var lastId=parseInt(state.rows[state.rows.length-1].id,10);
       state.printRows=state.rows.slice();state.rows=[];if(!isNaN(lastId))state.start=String(lastId+1);
@@ -731,22 +742,22 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   function fmtISO(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
   var selQ=[];
   function updateQBulk(){
-    selQ=selQ.filter(function(n){return qRows.some(function(q){return q.row===n})});
+    selQ=selQ.filter(function(n){return qRows.some(function(q){return q.key===n})});
     syncBulk([$('qSelAll'),$('qSelAllM')],[$('qBulkDel'),$('qBulkDelM')],qRows.length,selQ.length);
   }
-  on(['qSelAll','qSelAllM'],'change',function(){selQ=this.checked?qRows.map(function(q){return q.row}):[];renderQuery()});
+  on(['qSelAll','qSelAllM'],'change',function(){selQ=this.checked?qRows.map(function(q){return q.key}):[];renderQuery()});
   on(['qBulkDel','qBulkDelM'],'click',async function(){
     var n=selQ.length,m=$('q_msg');if(!n)return;
     var ok=await ask('¿Eliminar '+n+(n===1?' fila?':' filas?'),'Se van a borrar de la hoja de Google las filas seleccionadas, y las que les siguen se van a volver a numerar. No se puede deshacer.','Sí, eliminar',true);
     if(!ok)return;
-    var todo=qRows.filter(function(q){return selQ.indexOf(q.row)>=0}).sort(function(a,b){return b.row-a.row}),done=0;
+    var todo=qRows.filter(function(q){return selQ.indexOf(q.key)>=0}).sort(function(a,b){return a.tab<b.tab?-1:a.tab>b.tab?1:b.row-a.row}),done=0;
     $('qBulkDel').disabled=$('qBulkDelM').disabled=true;
     try{
       /* de abajo hacia arriba: borrar una fila solo renumera las que le siguen, así las demás siguen válidas */
       for(var k=0;k<todo.length;k++){
         say(m,'Eliminando '+(k+1)+' de '+todo.length+'…');
         var res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-          body:JSON.stringify({token:TOKEN,action:'delete',row:todo[k].row,expectId:todo[k].values.id})}).then(function(r){return r.json()});
+          body:JSON.stringify({token:TOKEN,action:'delete',tab:todo[k].tab,row:todo[k].row,expectId:todo[k].values.id})}).then(function(r){return r.json()});
         if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
         done++;
       }
@@ -769,8 +780,8 @@ td.act .sel{margin:0 6px;vertical-align:middle}
         tr.appendChild(td);
       });
       var ta=document.createElement('td');ta.className='act';
-      ta.appendChild(mkSel(selQ.indexOf(q.row)>=0,'Seleccionar fila '+q.values.id,function(on){
-        var k=selQ.indexOf(q.row);if(on&&k<0)selQ.push(q.row);else if(!on&&k>=0)selQ.splice(k,1);updateQBulk();
+      ta.appendChild(mkSel(selQ.indexOf(q.key)>=0,'Seleccionar fila '+q.values.id,function(on){
+        var k=selQ.indexOf(q.key);if(on&&k<0)selQ.push(q.key);else if(!on&&k>=0)selQ.splice(k,1);updateQBulk();
       }));
       var be=document.createElement('button');be.type='button';be.className='ed';be.innerHTML=editing?QICON.ok:QICON.edit;
       be.title=editing?'Guardar cambios':'Editar fila';be.setAttribute('aria-label',(editing?'Guardar cambios de la fila ':'Editar fila ')+q.values.id);
@@ -796,7 +807,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       var url=APPS_SCRIPT_URL+'?action=list&from='+f+'&to='+t+'&token='+encodeURIComponent(TOKEN);
       var res=await fetch(url).then(function(r){return r.json()});
       if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
-      qRows=res.rows||[];qEdit=-1;selQ=[];renderQuery();
+      qRows=res.rows||[];qRows.forEach(function(q){q.key=q.tab+'|'+q.row});qEdit=-1;selQ=[];renderQuery();
       var txt=qRows.length+(qRows.length===1?' fila encontrada.':' filas encontradas.');
       if(res.skipped)txt+=' '+res.skipped+(res.skipped===1?' fila de la hoja tiene':' filas de la hoja tienen')+' una fecha que no se puede leer y no se muestra.';
       say(m,txt,qRows.length?'ok':'warn');
@@ -811,7 +822,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     say(m,'Guardando…');
     try{
       var res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body:JSON.stringify({token:TOKEN,action:'update',row:q.row,expectId:q.values.id,values:COLS.map(function(c){return nv[c]})})}).then(function(r){return r.json()});
+        body:JSON.stringify({token:TOKEN,action:'update',tab:q.tab,row:q.row,expectId:q.values.id,values:COLS.map(function(c){return nv[c]})})}).then(function(r){return r.json()});
       if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
       q.values=nv;qEdit=-1;renderQuery();say(m,'Fila '+nv.id+' actualizada en la hoja.','ok');
     }catch(e){say(m,'No se pudo guardar el cambio ('+(e&&e.message||'error')+').','bad')}
@@ -823,7 +834,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     say(m,'Eliminando…');
     try{
       var res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body:JSON.stringify({token:TOKEN,action:'delete',row:q.row,expectId:q.values.id})}).then(function(r){return r.json()});
+        body:JSON.stringify({token:TOKEN,action:'delete',tab:q.tab,row:q.row,expectId:q.values.id})}).then(function(r){return r.json()});
       if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
       var txt='Fila eliminada. '+(res.renumbered?'Se renumeraron '+res.renumbered+(res.renumbered===1?' fila':' filas')+' de la hoja.':'La hoja quedó sin cambios de numeración.');
       await runQuery();
@@ -834,7 +845,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   /* después de renumerar, el próximo Nº de la carga nueva sale del último de la hoja */
   function syncStart(){
     if(!APPS_SCRIPT_URL||state.rows.length)return;
-    fetch(APPS_SCRIPT_URL).then(function(r){return r.json()}).then(function(r){
+    fetch(APPS_SCRIPT_URL+'?tab='+encodeURIComponent(mesTab())).then(function(r){return r.json()}).then(function(r){
       if(state.rows.length||idTouched)return;
       var n=Number(r&&r.lastId);
       if(r&&r.ok&&r.lastId!=null&&r.lastId!==''&&!isNaN(n)){state.start=String(n+1);save();refreshDraftId()}
@@ -989,6 +1000,16 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   load();renderTable();refreshDraftId();
   if(state.lockDate&&validDate(state.lockDate)){$('d_fecha').value=state.lockDate;$('d_lock').checked=true;syncLock()}
   setCur(0);
+  /* mes: selector con casilla para dejarlo fijo; las filas se envían a la pestaña de ese mes */
+  (function(){
+    var sel=$('d_mes'),lk=$('d_mes_lock');
+    MESES.forEach(function(m){var o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o)});
+    var usar=(state.mesLock||state.rows.length)&&MESES.indexOf(state.mes)>=0?state.mes:MESES[new Date().getMonth()];
+    sel.value=usar;lk.checked=!!state.mesLock;state.mes=usar;
+    sel.addEventListener('change',function(){state.mes=sel.value;save();idTouched=false;syncStart()});
+    lk.addEventListener('change',function(){state.mesLock=lk.checked;state.mes=sel.value;save()});
+    renderTable();
+  })();
   /* el número de la primera fila siempre es el último Nº de la hoja + 1 */
   syncStart();
 })();
