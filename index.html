@@ -433,6 +433,14 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     }
     return out;
   }
+  /* la fecha tiene que ser del mes elegido; si no, aviso con el nombre del mes de la fecha */
+  function mesOk(fecha,tab){
+    if(!fecha||!validDate(fecha)||MESES.indexOf(tab)<0)return true;
+    var m=parseInt(fecha.split('/')[1],10)-1;
+    if(MESES.indexOf(tab)===m)return true;
+    ask('El mes no coincide','La fecha que escribiste ('+fecha+') es de '+MESES[m]+', pero el mes seleccionado es '+tab+'. Seleccioná el mes '+MESES[m]+' correcto.','Entendido',false,true);
+    return false;
+  }
   function validDate(v){
     var m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v);if(!m)return false;
     var d=+m[1],mo=+m[2],y=+m[3],dt=new Date(y,mo-1,d);
@@ -496,13 +504,13 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   }
   function refreshDraftId(force){var v=nextId(),d=$('d_id');d.disabled=!numera();d.placeholder=numera()?'':'sin Nº';if(force||document.activeElement!==d)d.value=v}
   /* cuadro de confirmación propio (los alert del navegador se bloquean en muchas vistas) */
-  function ask(title,text,yesLabel,danger){
+  function ask(title,text,yesLabel,danger,info){
     return new Promise(function(resolve){
       var d=$('dlg'),yes=$('dlgYes'),no=$('dlgNo');
       $('dlgTitle').textContent=title;$('dlgText').textContent=text;yes.textContent=yesLabel||'Aceptar';
-      yes.className='btn '+(danger?'danger':'main');
-      d.hidden=false;no.focus();
-      function done(v){d.hidden=true;yes.onclick=no.onclick=null;document.removeEventListener('keydown',key);resolve(v)}
+      yes.className='btn '+(danger?'danger':'main');no.hidden=!!info;
+      d.hidden=false;(info?yes:no).focus();
+      function done(v){d.hidden=true;no.hidden=false;yes.onclick=no.onclick=null;document.removeEventListener('keydown',key);resolve(v)}
       function key(e){if(e.key==='Escape')done(false)}
       yes.onclick=function(){done(true)};no.onclick=function(){done(false)};
       document.addEventListener('keydown',key);
@@ -535,6 +543,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     var r=state.rows[i],nv={};
     VIEW.forEach(function(c){nv[c]=$('e_'+c).value.trim()});
     if(nv.fecha&&!validDate(nv.fecha)){say($('sendMsg'),'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('e_fecha').focus();return}
+    if(!mesOk(nv.fecha,mesTab())){$('e_fecha').focus();return}
     if(!nv.id&&numera()){say($('sendMsg'),'El número de fila no puede quedar vacío.','warn');$('e_id').focus();return}
     VIEW.forEach(function(c){r[c]=nv[c]});
     editIdx=-1;save();say($('sendMsg'),'Fila '+r.id+' actualizada.','ok');renderTable();refreshDraftId();
@@ -598,6 +607,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(state.sent){state.printRows=[];state.sent=false;state.sentTxt='';say($('sendMsg'),'')}
     if(!state.rows.length&&r.id)state.start=r.id;
     if(r.fecha&&!validDate(r.fecha)){say($('micMsg'),'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('d_fecha').focus();return false}
+    if(!mesOk(r.fecha,mesTab()))return false;
     if(!r.id&&numera()){say($('micMsg'),'Escribí el número de la fila antes de agregar.','warn');$('d_id').focus();return false}
     if(!r.descripcion){say($('micMsg'),'Falta el medicamento.','warn');return false}
     state.rows.push(r);save();renderTable();
@@ -820,6 +830,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     var q=qRows[i],nv={},m=$('q_msg');
     VIEW.forEach(function(c){nv[c]=$('qe_'+c).value.trim()});
     if(nv.fecha&&!validDate(nv.fecha)){say(m,'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('qe_fecha').focus();return}
+    if(!mesOk(nv.fecha,q.tab)){$('qe_fecha').focus();return}
     if(!nv.id&&q.tab==='Marzo'){say(m,'El número de fila no puede quedar vacío.','warn');$('qe_id').focus();return}
     say(m,'Guardando…');
     try{
