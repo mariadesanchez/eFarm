@@ -328,6 +328,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   function load(){try{var s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&Array.isArray(s.rows))state=s}catch(e){}}
   function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
   var MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  function numera(){return mesTab()==='Marzo'}
   function mesTab(){var v=document.getElementById('d_mes');return v&&v.value?v.value:MESES[new Date().getMonth()]}
   function say(el,t,c){el.textContent=t||'';el.className=el.className.replace(/\b(warn|bad|ok)\b/g,'').trim()+(c?' '+c:'')}
   function pad(n){return (n<10?'0':'')+n}
@@ -489,10 +490,11 @@ td.act .sel{margin:0 6px;vertical-align:middle}
 
   /* ---------- id y tabla ---------- */
   function nextId(){
+    if(!numera())return '';   /* por ahora solo Marzo lleva Nº correlativo; el resto se numera más adelante */
     if(state.rows.length){var n=parseInt(state.rows[state.rows.length-1].id,10);if(!isNaN(n))return String(n+1)}
     return state.start||'';
   }
-  function refreshDraftId(force){var v=nextId();if(force||document.activeElement!==$('d_id'))$('d_id').value=v}
+  function refreshDraftId(force){var v=nextId(),d=$('d_id');d.disabled=!numera();d.placeholder=numera()?'':'sin Nº';if(force||document.activeElement!==d)d.value=v}
   /* cuadro de confirmación propio (los alert del navegador se bloquean en muchas vistas) */
   function ask(title,text,yesLabel,danger){
     return new Promise(function(resolve){
@@ -533,7 +535,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     var r=state.rows[i],nv={};
     VIEW.forEach(function(c){nv[c]=$('e_'+c).value.trim()});
     if(nv.fecha&&!validDate(nv.fecha)){say($('sendMsg'),'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('e_fecha').focus();return}
-    if(!nv.id){say($('sendMsg'),'El número de fila no puede quedar vacío.','warn');$('e_id').focus();return}
+    if(!nv.id&&numera()){say($('sendMsg'),'El número de fila no puede quedar vacío.','warn');$('e_id').focus();return}
     VIEW.forEach(function(c){r[c]=nv[c]});
     editIdx=-1;save();say($('sendMsg'),'Fila '+r.id+' actualizada.','ok');renderTable();refreshDraftId();
   }
@@ -596,12 +598,12 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(state.sent){state.printRows=[];state.sent=false;state.sentTxt='';say($('sendMsg'),'')}
     if(!state.rows.length&&r.id)state.start=r.id;
     if(r.fecha&&!validDate(r.fecha)){say($('micMsg'),'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('d_fecha').focus();return false}
-    if(!r.id){say($('micMsg'),'Escribí el número de la fila antes de agregar.','warn');$('d_id').focus();return false}
+    if(!r.id&&numera()){say($('micMsg'),'Escribí el número de la fila antes de agregar.','warn');$('d_id').focus();return false}
     if(!r.descripcion){say($('micMsg'),'Falta el medicamento.','warn');return false}
     state.rows.push(r);save();renderTable();
     ORDER.forEach(function(f){if(f==='fecha'&&dateLocked())return;$('d_'+f).value=''});apeAuto=false;
     refreshDraftId(true);
-    say($('micMsg'),'Fila '+r.id+' agregada.','ok');
+    say($('micMsg'),(r.id?'Fila '+r.id:'Fila')+' agregada.','ok');
     return true;
   }
 
@@ -713,7 +715,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     btn.disabled=true;say($('sendMsg'),'Guardando…');stopMic();
     try{
       var chk=await fetch(APPS_SCRIPT_URL+'?tab='+encodeURIComponent(mesTab())).then(function(r){return r.json()}).catch(function(){return null});
-      if(chk&&chk.ok&&(chk.cols!==COLS.length||chk.layout!==3)){say($('sendMsg'),'El script de Google está desactualizado y guardaría los datos en las columnas equivocadas: pegá el Code.gs nuevo y publicá una versión nueva (Implementar → Administrar implementaciones → Nueva versión). No se envió nada.','warn');btn.disabled=!state.rows.length;return}
+      if(chk&&chk.ok&&(chk.cols!==COLS.length||chk.layout!==4)){say($('sendMsg'),'El script de Google está desactualizado y guardaría los datos en las columnas equivocadas: pegá el Code.gs nuevo y publicá una versión nueva (Implementar → Administrar implementaciones → Nueva versión). No se envió nada.','warn');btn.disabled=!state.rows.length;return}
     }catch(e){}
     try{
       var rows=state.rows.map(function(r){return COLS.map(function(c){return r[c]||''})});
@@ -757,7 +759,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       for(var k=0;k<todo.length;k++){
         say(m,'Eliminando '+(k+1)+' de '+todo.length+'…');
         var res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-          body:JSON.stringify({token:TOKEN,action:'delete',tab:todo[k].tab,row:todo[k].row,expectId:todo[k].values.id})}).then(function(r){return r.json()});
+          body:JSON.stringify({token:TOKEN,action:'delete',tab:todo[k].tab,row:todo[k].row,expectId:todo[k].values.id,expectDesc:todo[k].values.descripcion})}).then(function(r){return r.json()});
         if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
         done++;
       }
@@ -818,11 +820,11 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     var q=qRows[i],nv={},m=$('q_msg');
     VIEW.forEach(function(c){nv[c]=$('qe_'+c).value.trim()});
     if(nv.fecha&&!validDate(nv.fecha)){say(m,'La fecha tiene que ser DD/MM/AAAA, por ejemplo 12/03/2024.','warn');$('qe_fecha').focus();return}
-    if(!nv.id){say(m,'El número de fila no puede quedar vacío.','warn');$('qe_id').focus();return}
+    if(!nv.id&&q.tab==='Marzo'){say(m,'El número de fila no puede quedar vacío.','warn');$('qe_id').focus();return}
     say(m,'Guardando…');
     try{
       var res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body:JSON.stringify({token:TOKEN,action:'update',tab:q.tab,row:q.row,expectId:q.values.id,values:COLS.map(function(c){return nv[c]})})}).then(function(r){return r.json()});
+        body:JSON.stringify({token:TOKEN,action:'update',tab:q.tab,row:q.row,expectId:q.values.id,expectDesc:q.values.descripcion,values:COLS.map(function(c){return nv[c]})})}).then(function(r){return r.json()});
       if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
       q.values=nv;qEdit=-1;renderQuery();say(m,'Fila '+nv.id+' actualizada en la hoja.','ok');
     }catch(e){say(m,'No se pudo guardar el cambio ('+(e&&e.message||'error')+').','bad')}
@@ -834,7 +836,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     say(m,'Eliminando…');
     try{
       var res=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body:JSON.stringify({token:TOKEN,action:'delete',tab:q.tab,row:q.row,expectId:q.values.id})}).then(function(r){return r.json()});
+        body:JSON.stringify({token:TOKEN,action:'delete',tab:q.tab,row:q.row,expectId:q.values.id,expectDesc:q.values.descripcion})}).then(function(r){return r.json()});
       if(!res||!res.ok)throw new Error((res&&res.error)||'respuesta inválida');
       var txt='Fila eliminada. '+(res.renumbered?'Se renumeraron '+res.renumbered+(res.renumbered===1?' fila':' filas')+' de la hoja.':'La hoja quedó sin cambios de numeración.');
       await runQuery();
@@ -844,6 +846,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   }
   /* después de renumerar, el próximo Nº de la carga nueva sale del último de la hoja */
   function syncStart(){
+    if(!numera()){refreshDraftId(true);return}
     if(!APPS_SCRIPT_URL||state.rows.length)return;
     fetch(APPS_SCRIPT_URL+'?tab='+encodeURIComponent(mesTab())).then(function(r){return r.json()}).then(function(r){
       if(state.rows.length||idTouched)return;
@@ -1006,9 +1009,9 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     MESES.forEach(function(m){var o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o)});
     var usar=(state.mesLock||state.rows.length)&&MESES.indexOf(state.mes)>=0?state.mes:MESES[new Date().getMonth()];
     sel.value=usar;lk.checked=!!state.mesLock;state.mes=usar;
-    sel.addEventListener('change',function(){state.mes=sel.value;save();idTouched=false;syncStart()});
+    sel.addEventListener('change',function(){state.mes=sel.value;save();idTouched=false;refreshDraftId(true);syncStart()});
     lk.addEventListener('change',function(){state.mesLock=lk.checked;state.mes=sel.value;save()});
-    renderTable();
+    renderTable();refreshDraftId(true);
   })();
   /* el número de la primera fila siempre es el último Nº de la hoja + 1 */
   syncStart();

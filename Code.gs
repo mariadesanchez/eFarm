@@ -162,6 +162,14 @@ function lastIdFor_(tab) {
   return null;
 }
 
+// confirma que la fila sigue siendo la que se mostró: por Nº, o por Producto si la fila no tiene Nº
+function mismaFila_(sh, row, body) {
+  var id = String(sh.getRange(row, 1).getValue());
+  if (id !== String(body.expectId == null ? '' : body.expectId)) return false;
+  if (id === '' && String(sh.getRange(row, 7).getValue()) !== String(body.expectDesc == null ? '' : body.expectDesc)) return false;
+  return true;
+}
+
 function doGet(e) {
   var p = (e && e.parameter) || {};
   if (TOKEN && p.token !== TOKEN && p.action) return out_({ ok: false, error: 'token inválido' });
@@ -207,8 +215,8 @@ function doGet(e) {
   // estado: último Nº para la pestaña pedida (y datos para que index.html sepa que el script está al día)
   var tab = p.tab ? tabName_(p.tab) : 'datos';
   try { ensureLayout_(tab); } catch (err) { return out_({ ok: false, error: String(err) }); }
-  // cols = campos que maneja el formulario (6); layout 3 = guarda según la pestaña (mes) que pide el formulario
-  return out_({ ok: true, lastId: lastIdFor_(tab), tab: tab, cols: 6, layout: 3 });
+  // cols = campos que maneja el formulario (6); layout 4 = guarda según la pestaña (mes) y admite filas sin Nº
+  return out_({ ok: true, lastId: lastIdFor_(tab), tab: tab, cols: 6, layout: 4 });
 }
 
 function doPost(e) {
@@ -223,8 +231,9 @@ function doPost(e) {
       if (body.action === 'delete') {
         var drow = Number(body.row);
         if (!drow || drow < 2 || drow > sh.getLastRow()) return out_({ ok: false, error: 'fila inválida' });
-        if (String(sh.getRange(drow, 1).getValue()) !== String(body.expectId)) return out_({ ok: false, error: 'la fila cambió en la hoja, volvé a buscar' });
-        var base = Number(sh.getRange(drow, 1).getValue()); // Nº de la fila que se borra: lo toma la fila siguiente
+        if (!mismaFila_(sh, drow, body)) return out_({ ok: false, error: 'la fila cambió en la hoja, volvé a buscar' });
+        var rawId = sh.getRange(drow, 1).getValue();
+        var base = rawId === '' ? NaN : Number(rawId); // Nº de la fila que se borra: lo toma la fila siguiente (si no tiene Nº, no se renumera)
         sh.deleteRow(drow);
         var lastRow = sh.getLastRow(), renumbered = 0;
         if (lastRow >= drow && !isNaN(base)) {
@@ -242,7 +251,7 @@ function doPost(e) {
         var row = Number(body.row), v = body.values;
         if (!row || row < 2 || row > sh.getLastRow() || !v || v.length !== 6) return out_({ ok: false, error: 'fila inválida' });
         // seguridad: la fila debe seguir siendo la misma que se mostró
-        if (String(sh.getRange(row, 1).getValue()) !== String(body.expectId)) return out_({ ok: false, error: 'la fila cambió en la hoja, volvé a buscar' });
+        if (!mismaFila_(sh, row, body)) return out_({ ok: false, error: 'la fila cambió en la hoja, volvé a buscar' });
         var nueva = toSheet_(v.map(function (x) { return String(x == null ? '' : x); }));
         nueva[5] = String(sh.getRange(row, 6).getValue());   // el Proveedor no se edita desde el formulario: se conserva
         var rg = sh.getRange(row, 1, 1, NCOLS);
