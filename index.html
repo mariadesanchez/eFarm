@@ -434,11 +434,11 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     return out;
   }
   /* la fecha tiene que ser del mes elegido; si no, aviso con el nombre del mes de la fecha */
-  function mesOk(fecha,tab){
+  function mesOk(fecha,tab,foco){
     if(!fecha||!validDate(fecha)||MESES.indexOf(tab)<0)return true;
     var m=parseInt(fecha.split('/')[1],10)-1;
     if(MESES.indexOf(tab)===m)return true;
-    ask('El mes no coincide','La fecha que escribiste ('+fecha+') es de '+MESES[m]+', pero el mes seleccionado es '+tab+'. Seleccioná el mes '+MESES[m]+' correcto.','Entendido',false,true);
+    ask('El mes no coincide','La fecha que escribiste ('+fecha+') es de '+MESES[m]+', pero el mes seleccionado es '+tab+'. Seleccioná el mes '+MESES[m]+' correcto.','Entendido',false,true).then(function(){if(foco)foco.focus()});
     return false;
   }
   function validDate(v){
@@ -633,6 +633,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     else if(f==='fecha'){
       v=parseDate(first);
       if(!v){say($('micMsg'),'No entendí la fecha ("'+first+'"). Decila completa, por ejemplo "doce de marzo de 2024".','warn');return}
+      if(!mesOk(v,mesTab(),$('d_fecha')))return;
       $('d_'+f).value=v;advance();
       if(cur>0)say($('micMsg'),'Escuché "'+first+'" y quedó '+v+'. Si no es, tocá el campo y corregila.','ok');
       return;
@@ -882,7 +883,11 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   $('addBtn').addEventListener('click',function(){if(addRow())setCur(0)});
   var idTouched=false;
   $('d_id').addEventListener('input',function(){idTouched=true;if(!state.rows.length){state.start=this.value;save()}});
-  $('d_fecha').addEventListener('input',function(){this.value=maskDate(this.value);syncLock();if(state.lockDate)saveLock()});
+  $('d_fecha').addEventListener('input',function(){
+    this.value=maskDate(this.value);
+    /* ni bien la fecha está completa se controla que sea del mes elegido */
+    if(this.value.length===10&&!mesOk(this.value,mesTab(),this)){this.value='';$('d_lock').checked=false}
+    syncLock();if(state.lockDate||!$('d_lock').checked)saveLock()});
   function saveLock(){state.lockDate=$('d_lock').checked?$('d_fecha').value.trim():'';save()}
   $('d_lock').addEventListener('change',function(){
     if(this.checked&&!validDate($('d_fecha').value.trim())){
@@ -1021,7 +1026,11 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     MESES.forEach(function(m){var o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o)});
     var usar=(state.mesLock||state.rows.length)&&MESES.indexOf(state.mes)>=0?state.mes:MESES[new Date().getMonth()];
     sel.value=usar;lk.checked=!!state.mesLock;state.mes=usar;
-    sel.addEventListener('change',function(){state.mes=sel.value;save();idTouched=false;refreshDraftId(true);syncStart()});
+    sel.addEventListener('change',function(){
+      state.mes=sel.value;save();idTouched=false;refreshDraftId(true);syncStart();
+      var f=$('d_fecha');
+      if(f.value&&!mesOk(f.value,sel.value,f)){f.value='';$('d_lock').checked=false;syncLock();saveLock()}
+    });
     lk.addEventListener('change',function(){state.mesLock=lk.checked;state.mes=sel.value;save()});
     renderTable();refreshDraftId(true);
   })();
