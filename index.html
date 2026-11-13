@@ -696,6 +696,8 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   var POR=/(^|\s)(?:por|equis|x|×)(?=\s|$)\s*/i;
   window.efarmDictar=function(t){applyUtterance([t])};
   function applyUtterance(alts){
+    /* el reconocedor a veces escribe "por" como * o × */
+    alts=alts.map(function(a){return String(a).replace(/\s*[*×]\s*/g,' por ').trim()});
     var first=alts[0].trim().replace(/[.,!?]+$/,'');if(!first)return;
     var n=norm(first);
     if(/^(atras|volver)$/.test(n)){setCur(Math.max(0,skipLocked(cur-1,-1)));return}
