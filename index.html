@@ -1182,14 +1182,18 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   var medCache={},medBusy='';
   function buscarMedico(){
     var mat=matKey($('d_matricula').value),ap=$('d_apellido');
-    if(mat.length<4||ap.value.trim()||!APPS_SCRIPT_URL||lookupApellido(mat)||medBusy===mat)return;
+    /* se consulta aunque la hoja ya conozca la matrícula, para completar apellido y nombre; solo se respeta un apellido escrito a mano */
+    if(mat.length<4||(ap.value.trim()&&!apeAuto)||!APPS_SCRIPT_URL||medBusy===mat)return;
+    function libre(){return matKey($('d_matricula').value)===mat&&(!ap.value.trim()||apeAuto)}
     function listo(r){
-      if(matKey($('d_matricula').value)!==mat||ap.value.trim())return;
-      var it=r.items||[];
+      if(!libre())return;
+      var it=r.items||[],conocido=!!ap.value.trim();
       if(it.length===1){
         var x=it[0],hab=/habilitad/i.test(x.situacion||'');
         ap.value=titleCase(x.apellido+' '+x.nombre);apeAuto=true;ap.classList.remove('need');
         say($('micMsg'),'Registro nacional: '+titleCase(x.apellido)+', '+titleCase(x.nombre)+' (Médico, Buenos Aires'+(x.situacion?', '+x.situacion.toLowerCase():'')+').',hab?'ok':'warn');
+      }else if(conocido){
+        /* la hoja ya sabía el apellido y el registro no lo confirma: se deja el de la hoja */
       }else if(it.length>1){
         ap.classList.add('need');
         say($('micMsg'),'Hay '+it.length+' médicos de Buenos Aires con la matrícula '+mat+' ('+it.map(function(x){return titleCase(x.apellido)+' '+titleCase(x.nombre)}).join('; ')+'): escribí el apellido.','warn');
@@ -1199,14 +1203,15 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       }
     }
     if(medCache[mat]){listo(medCache[mat]);return}
-    medBusy=mat;say($('micMsg'),'Buscando la matrícula '+mat+' en el registro nacional…');
+    medBusy=mat;
+    if(!ap.value.trim())say($('micMsg'),'Buscando la matrícula '+mat+' en el registro nacional…');
     fetch(APPS_SCRIPT_URL+'?action=profesional&matricula='+mat+'&token='+encodeURIComponent(TOKEN)).then(function(r){return r.json()}).then(function(r){
       medBusy='';
       if(!r||!r.ok)throw new Error((r&&r.error)||'respuesta inválida');
       medCache[mat]=r;listo(r);
     }).catch(function(e){
       medBusy='';
-      if(matKey($('d_matricula').value)===mat&&!ap.value.trim()){ap.classList.add('need');say($('micMsg'),'No se pudo consultar el registro nacional ('+(e&&e.message||'error')+'): escribí el apellido.','warn')}
+      if(libre()&&!ap.value.trim()){ap.classList.add('need');say($('micMsg'),'No se pudo consultar el registro nacional ('+(e&&e.message||'error')+'): escribí el apellido.','warn')}
     });
   }
   $('d_matricula').addEventListener('blur',function(){setTimeout(buscarMedico,150)});
