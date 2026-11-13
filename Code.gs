@@ -179,32 +179,55 @@ function mismaFila_(sh, row, body) {
 // de Buenos Aires que tienen esa matrícula. Se pide la página, se toma el formulario y se envía igual que lo haría el navegador.
 var REFEPS_URL = 'https://www.argentina.gob.ar/salud/buscador-nacional-de-profesionales-de-la-salud';
 
-// Envía el formulario del buscador (por matrícula o por apellido/nombre) y devuelve la lista de profesionales encontrados.
-function refepsBid_() {
-  var page = UrlFetchApp.fetch(REFEPS_URL, { muteHttpExceptions: true }).getContentText();
+// El formulario del buscador (form_build_id) casi no cambia: se guarda una hora y solo se pide de nuevo si el sitio no responde bien.
+var REFEPS_HEADERS = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+                       'Accept-Language': 'es-AR,es;q=0.9' };
+
+function refepsBid_(forzar) {
+  var cache = CacheService.getScriptCache();
+  if (!forzar) { var c = cache.get('refeps_bid'); if (c) return c; }
+  var page = UrlFetchApp.fetch(REFEPS_URL, { muteHttpExceptions: true, headers: REFEPS_HEADERS }).getContentText();
   var at = page.indexOf('consulta-profesionales-form');
   var bid = at >= 0 ? /name="form_build_id" value="([^"]+)"/.exec(page.slice(at)) : null;
   if (!bid) throw new Error('el buscador nacional cambió su formulario');
+  cache.put('refeps_bid', bid[1], 3600);
   return bid[1];
 }
 
-function consultarRefeps_(searchBy, valor, bidReuse) {
-  var bid = [null, bidReuse || refepsBid_()];
-  var resp = UrlFetchApp.fetch(REFEPS_URL, {
-    method: 'post', muteHttpExceptions: true, followRedirects: true,
-    payload: { searchBy: searchBy, dni: '', matricula: searchBy === 'matricula' ? valor : '',
-               apellidonombre: searchBy === 'apellido-nombre' ? valor : '', form_build_id: bid[1],
-               form_id: 'argobar_consulta_refeps_profesionales', tarro_de_miel: '', op: 'Consultar' }
-  });
-  var html = resp.getContentText();
+// Devuelve la lista de profesionales de la respuesta, o null si la página no es la esperada.
+function parseRefeps_(html) {
   var m = /allItems\s*=\s*(\[[\s\S]*?\]);\s*\n/.exec(html);
   if (m) return JSON.parse(m[1]);
-  if (html.indexOf('resultado encontrado') < 0 && html.indexOf('resultados encontrados') < 0 && html.indexOf('refepsProfesionales') < 0 &&
-      html.indexOf('No se encontr') < 0 && html.indexOf('No se encuentr') < 0) {
-    throw new Error('el buscador nacional no respondió como se esperaba');
-  }
-  return [];
+  if (html.indexOf('resultado encontrado') >= 0 || html.indexOf('resultados encontrados') >= 0 || html.indexOf('refepsProfesionales') >= 0 ||
+      html.indexOf('No se encontr') >= 0 || html.indexOf('No se encuentr') >= 0) return [];
+  return null;
 }
+
+function refepsRequest_(searchBy, valor, bid) {
+  return { url: REFEPS_URL, method: 'post', muteHttpExceptions: true, followRedirects: true, headers: REFEPS_HEADERS,
+           payload: { searchBy: searchBy, dni: '', matricula: searchBy === 'matricula' ? valor : '',
+                      apellidonombre: searchBy === 'apellido-nombre' ? valor : '', form_build_id: bid,
+                      form_id: 'argobar_consulta_refeps_profesionales', tarro_de_miel: '', op: 'Consultar' } };
+}
+
+// Hace varias consultas a la vez (en paralelo). Devuelve una lista de resultados por cada valor.
+function consultarVarios_(searchBy, valores) {
+  var bid = refepsBid_(false), out = null;
+  for (var intento = 0; intento < 2; intento++) {
+    var resp = UrlFetchApp.fetchAll(valores.map(function (v) { return refepsRequest_(searchBy, v, bid); }));
+    out = resp.map(function (r) { return parseRefeps_(r.getContentText()); });
+    var mala = -1;
+    out.forEach(function (o, k) { if (o === null && mala < 0) mala = k; });
+    if (mala < 0) return out;
+    if (intento === 1) {
+      var r0 = resp[mala], txt = r0.getContentText().replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      throw new Error('el buscador nacional no respondió como se esperaba (HTTP ' + r0.getResponseCode() + ': ' + txt.slice(0, 90) + ')');
+    }
+    bid = refepsBid_(true);   /* se renueva el formulario y se reintenta una vez */
+  }
+}
+
+function consultarRefeps_(searchBy, valor) { return consultarVarios_(searchBy, [valor])[0]; }
 
 // Médicos (solo médicos) con matrícula en la provincia pedida: 'buenosaires' o 'caba'. Una fila por persona y matrícula.
 function medicosDe_(all, provincia, matriculaPedida) {
@@ -268,10 +291,9 @@ function buscarMedicos_(consulta, provincia) {
         if (pares.indexOf(par) < 0) pares.push(par);
       });
     }
-    var bid = refepsBid_(), vistos = {};
+    var vistos = {};
     all = [];
-    pares.forEach(function (par) {
-      var r = consultarRefeps_('apellido-nombre', par, bid);
+    consultarVarios_('apellido-nombre', pares).forEach(function (r) {
       if (r.length >= 50) limite = true;
       r.forEach(function (x) { var k = x.idProfesional || (x.apellido + '|' + x.nombre + '|' + x.nroDoc); if (!vistos[k]) { vistos[k] = 1; all.push(x); } });
     });

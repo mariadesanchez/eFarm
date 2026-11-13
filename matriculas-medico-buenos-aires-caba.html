@@ -102,15 +102,16 @@ button.btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.85)}
     if(/^\d+$/.test(q)&&(q.length<3||q.length>9)){say('La matrícula tiene que tener entre 3 y 9 números.','warn');return}
     if(busy)return;
     busy=true;ultima=prov;$('bBA').disabled=$('bCABA').disabled=true;$('res').innerHTML='';
-    say('Buscando en '+NOMBRE[prov]+'…');
-    fetch(APPS_SCRIPT_URL+'?action=medicos&provincia='+prov+'&q='+encodeURIComponent(q)+'&token='+encodeURIComponent(TOKEN))
+    say('Buscando en '+NOMBRE[prov]+'… puede tardar unos segundos.');
+    var ctl=window.AbortController?new AbortController():null,tm=ctl?setTimeout(function(){ctl.abort()},70000):null;
+    fetch(APPS_SCRIPT_URL+'?action=medicos&provincia='+prov+'&q='+encodeURIComponent(q)+'&token='+encodeURIComponent(TOKEN),ctl?{signal:ctl.signal}:undefined)
       .then(function(r){return r.json()})
       .then(function(r){
         if(!r||!r.ok)throw new Error((r&&r.error)||'respuesta inválida');
         mostrar(r,prov,q);
       })
-      .catch(function(e){say('No se pudo consultar el registro nacional ('+(e&&e.message||'error')+'). Probá de nuevo en un momento.','bad')})
-      .then(function(){busy=false;$('bBA').disabled=$('bCABA').disabled=false});
+      .catch(function(e){say('No se pudo consultar el registro nacional ('+(e&&e.name==='AbortError'?'tardó demasiado':(e&&e.message||'error'))+'). Probá de nuevo en un momento.','bad')})
+      .then(function(){if(tm)clearTimeout(tm);busy=false;$('bBA').disabled=$('bCABA').disabled=false});
   }
   function mostrar(r,prov,q){
     var it=r.items||[],box=$('res');box.innerHTML='';
