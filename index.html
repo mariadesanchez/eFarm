@@ -1188,7 +1188,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       var it=r.items||[];
       if(it.length===1){
         var x=it[0],hab=/habilitad/i.test(x.situacion||'');
-        ap.value=titleCase(x.apellido);apeAuto=true;ap.classList.remove('need');
+        ap.value=titleCase(x.apellido+' '+x.nombre);apeAuto=true;ap.classList.remove('need');
         say($('micMsg'),'Registro nacional: '+titleCase(x.apellido)+', '+titleCase(x.nombre)+' (Médico, Buenos Aires'+(x.situacion?', '+x.situacion.toLowerCase():'')+').',hab?'ok':'warn');
       }else if(it.length>1){
         ap.classList.add('need');
