@@ -115,7 +115,7 @@ button.btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.85)}
   function mostrar(r,prov,q){
     var it=r.items||[],box=$('res');box.innerHTML='';
     if(!it.length){
-      say('No encontré médicos en '+NOMBRE[prov]+' para "'+q+'".'+(r.limite?' Hay muchas coincidencias en el país: probá con apellido y nombre.':''),'warn');
+      say('No encontré médicos en '+NOMBRE[prov]+' para "'+q+'".'+(r.limite?' Hay muchas coincidencias en el país: probá con apellido y nombre.':(r.por==='nombre'?' Escribí primero el apellido y después el nombre.':'')),'warn');
       return;
     }
     var porMat=r.por==='matricula';

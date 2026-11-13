@@ -14,6 +14,11 @@ function out_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
+// minúsculas, sin tildes y con espacios entre palabras (para comparar por palabra)
+function normE_(t) {
+  return String(t == null ? '' : t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
 function norm_(t) {
   return String(t == null ? '' : t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
 }
@@ -175,11 +180,16 @@ function mismaFila_(sh, row, body) {
 var REFEPS_URL = 'https://www.argentina.gob.ar/salud/buscador-nacional-de-profesionales-de-la-salud';
 
 // Envía el formulario del buscador (por matrícula o por apellido/nombre) y devuelve la lista de profesionales encontrados.
-function consultarRefeps_(searchBy, valor) {
+function refepsBid_() {
   var page = UrlFetchApp.fetch(REFEPS_URL, { muteHttpExceptions: true }).getContentText();
   var at = page.indexOf('consulta-profesionales-form');
   var bid = at >= 0 ? /name="form_build_id" value="([^"]+)"/.exec(page.slice(at)) : null;
   if (!bid) throw new Error('el buscador nacional cambió su formulario');
+  return bid[1];
+}
+
+function consultarRefeps_(searchBy, valor, bidReuse) {
+  var bid = [null, bidReuse || refepsBid_()];
   var resp = UrlFetchApp.fetch(REFEPS_URL, {
     method: 'post', muteHttpExceptions: true, followRedirects: true,
     payload: { searchBy: searchBy, dni: '', matricula: searchBy === 'matricula' ? valor : '',
@@ -189,7 +199,8 @@ function consultarRefeps_(searchBy, valor) {
   var html = resp.getContentText();
   var m = /allItems\s*=\s*(\[[\s\S]*?\]);\s*\n/.exec(html);
   if (m) return JSON.parse(m[1]);
-  if (html.indexOf('resultados encontrados') < 0 && html.indexOf('refepsProfesionales') < 0 && html.indexOf('No se encontr') < 0) {
+  if (html.indexOf('resultado encontrado') < 0 && html.indexOf('resultados encontrados') < 0 && html.indexOf('refepsProfesionales') < 0 &&
+      html.indexOf('No se encontr') < 0 && html.indexOf('No se encuentr') < 0) {
     throw new Error('el buscador nacional no respondió como se esperaba');
   }
   return [];
@@ -241,8 +252,43 @@ function buscarMedicos_(consulta, provincia) {
   var cache = CacheService.getScriptCache(), key = 'refeps2_' + prov + '_' + (porMat ? 'm' : 'n') + norm_(q);
   var hit = cache.get(key);
   if (hit) return JSON.parse(hit);
-  var all = consultarRefeps_(porMat ? 'matricula' : 'apellido-nombre', q);
-  var out = { items: medicosDe_(all, prov, porMat ? q : ''), total: all.length, limite: !porMat && all.length >= 50, por: porMat ? 'matricula' : 'nombre' };
+  var all, limite = false, items, nPal = 0;
+  if (porMat) {
+    all = consultarRefeps_('matricula', q);
+    items = medicosDe_(all, prov, q);
+  } else {
+    /* el buscador acepta como mucho dos palabras (apellido + una del nombre): con más palabras se hacen varias consultas de a dos y
+       se queda con las personas que tienen TODAS las palabras escritas */
+    var tk = q.split(' ').filter(Boolean), pares = [];
+    nPal = tk.length;
+    if (tk.length <= 2) pares.push(tk.join(' '));
+    else {
+      [[0, 1], [0, tk.length - 1], [1, tk.length - 1]].forEach(function (ij) {
+        var par = tk[ij[0]] + ' ' + tk[ij[1]];
+        if (pares.indexOf(par) < 0) pares.push(par);
+      });
+    }
+    var bid = refepsBid_(), vistos = {};
+    all = [];
+    pares.forEach(function (par) {
+      var r = consultarRefeps_('apellido-nombre', par, bid);
+      if (r.length >= 50) limite = true;
+      r.forEach(function (x) { var k = x.idProfesional || (x.apellido + '|' + x.nombre + '|' + x.nroDoc); if (!vistos[k]) { vistos[k] = 1; all.push(x); } });
+    });
+    var words = tk.map(function (w) { return ' ' + normE_(w); });
+    if (tk.length > 2) {
+      all = all.filter(function (x) {
+        var hay = ' ' + normE_(x.apellido + ' ' + x.nombre);
+        return words.every(function (w) { return hay.indexOf(w) >= 0; });
+      });
+    }
+    items = medicosDe_(all, prov, '');
+    var exacto = normE_(q);   /* primero los que coinciden con el nombre completo */
+    items.sort(function (a, b) {
+      return (normE_(a.apellido + ' ' + a.nombre) === exacto ? 0 : 1) - (normE_(b.apellido + ' ' + b.nombre) === exacto ? 0 : 1);
+    });
+  }
+  var out = { items: items, total: all.length, limite: !porMat && limite && (nPal <= 2 || !items.length), por: porMat ? 'matricula' : 'nombre' };
   cache.put(key, JSON.stringify(out), 21600);
   return out;
 }
