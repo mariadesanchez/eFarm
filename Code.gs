@@ -20,7 +20,7 @@ function normE_(t) {
 }
 
 function norm_(t) {
-  return String(t == null ? '' : t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+  return String(t == null ? '' : t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
 }
 
 // nombre de pestaña permitido (mes o "datos"); si no viene o no existe en la lista, "datos"
