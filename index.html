@@ -62,6 +62,7 @@ button.btn.danger:active:not(:disabled){box-shadow:0 1px 0 var(--red-dark)}
 .f input,.id-in input{font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:var(--field);border:2px solid var(--line);border-radius:14px;padding:12px;width:100%;min-width:0;box-shadow:inset 0 3px 0 #0000000d}
 .f input::placeholder{color:#a3a791}
 .f input.cur{border-color:var(--btn)}
+.f input.need{background:#d9f2bd;border-color:var(--green)}
 .f.done input{background:var(--accent-soft)}
 .now{font-weight:800;color:var(--ink);min-height:22px}
 .msg{font-weight:700;font-size:14px;min-height:20px}
@@ -636,13 +637,46 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(!r.id&&numera()){say($('micMsg'),'Escribí el número de la fila antes de agregar.','warn');$('d_id').focus();return false}
     if(!r.descripcion){say($('micMsg'),'Falta el medicamento.','warn');return false}
     state.rows.push(r);ultAgregada=r;save();renderTable();
-    ORDER.forEach(function(f){if(f==='fecha'&&dateLocked())return;$('d_'+f).value=''});apeAuto=false;qtyAuto=false;repeatMed=false;
+    ORDER.forEach(function(f){if(f==='fecha'&&dateLocked())return;$('d_'+f).value=''});apeAuto=false;qtyAuto=false;repeatMed=false;$('d_apellido').classList.remove('need');
     refreshDraftId(true);syncRep();
     say($('micMsg'),(r.id?'Fila '+r.id:'Fila')+' agregada.','ok');
     return true;
   }
 
   /* ---------- interpretar lo dictado ---------- */
+  /* receta dictada de una sola vez: "clonazepam 2 x 30, 114488" → medicamento x cantidad + matrícula al final */
+  function parseReceta(alts){
+    for(var i=0;i<alts.length;i++){
+      var t=String(alts[i]||'').toLowerCase().trim().replace(/[.!?]+$/,'').replace(/,\s+/g,' ').replace(/\s+/g,' ');
+      var tk=t.split(' ');
+      var last=tk[tk.length-1].replace(/^(\d{1,3})(\.\d{3})+$/,function(m){return m.replace(/\./g,'')});
+      if(!/^\d{4,7}$/.test(last))continue;
+      tk.pop();
+      if(tk.length&&/^(matricula|matrícula|mat\.?|matr\.?)$/.test(tk[tk.length-1]))tk.pop();
+      var left=tk.join(' ');
+      if(!/[a-záéíóúñ]{3}/.test(left))continue;
+      var m1=left.match(/^(.+?)\s+(?:x|×|equis|por)\s+(\S+)$/)||left.match(/^(.+?\d)\s*[x×]\s*(\d+)$/);
+      return {desc:m1?m1[1]:left,qty:m1?m1[2]:'',mat:last};
+    }
+    return null;
+  }
+  function cargarReceta(m){
+    $('d_descripcion').value=correctDesc(m.desc).text;
+    afinarDesc();
+    if(m.qty){$('d_cantidad').value=parseQty(m.qty);qtyAuto=false}else{$('d_cantidad').value='';fillCantidad()}
+    var ap=$('d_apellido');
+    $('d_matricula').value=m.mat;apeAuto=false;ap.value='';fillApellido();
+    if(!dateLocked()&&!validDate($('d_fecha').value.trim())){
+      setCur(2);$('d_fecha').focus();
+      say($('micMsg'),'Cargué el medicamento, la cantidad y la matrícula. Falta la fecha: dictala o escribila.','warn');return;
+    }
+    if(!ap.value.trim()){
+      ap.classList.add('need');setCur(4);ap.focus();
+      say($('micMsg'),'No encontré la matrícula '+m.mat+': escribí o dictá el apellido (campo verde).','warn');return;
+    }
+    if(addRow())setCur(0);
+  }
+  window.efarmDictar=function(t){applyUtterance([t])};
   function applyUtterance(alts){
     var first=alts[0].trim().replace(/[.,!?]+$/,'');if(!first)return;
     var n=norm(first);
@@ -650,6 +684,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(/^(saltar|omitir|siguiente)$/.test(n)){advance();return}
     if(/^(mismo medico|mismo doctor|misma receta|igual medico)$/.test(n)){repetirMedico();return}
     if(/^(borrar|repetir)$/.test(n)){$('d_'+ORDER[cur]).value='';return}
+    if(cur===0){var rc=parseReceta(alts);if(rc){cargarReceta(rc);return}}
     var f=ORDER[cur],v;
     if(f==='descripcion'){
       var best=null;
@@ -1162,7 +1197,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       inp.focus();setCur(k);xSync();
     });
   });
-  function xSync(){ORDER.forEach(function(f){$('f_'+f).classList.toggle('hasv',!!$('d_'+f).value)});syncRep()}
+  function xSync(){if($('d_apellido').value)$('d_apellido').classList.remove('need');ORDER.forEach(function(f){$('f_'+f).classList.toggle('hasv',!!$('d_'+f).value)});syncRep()}
   setInterval(xSync,250);document.addEventListener('input',xSync);
   /* mismo médico: repite fecha, matrícula y apellido de la fila anterior; después solo se dicta medicamento y cantidad */
   /* "Mismo médico" solo se activa recién agregada una fila (con el formulario vacío): la siguiente puede ser del mismo médico */
