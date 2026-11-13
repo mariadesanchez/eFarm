@@ -217,6 +217,12 @@ function buscarProfesional_(matricula) {
   return out;
 }
 
+// Una sola vez: en el editor de Apps Script elegí "autorizarConsultas", tocá ▶ Ejecutar y aceptá el permiso de acceso a servicios externos.
+function autorizarConsultas() {
+  var r = buscarProfesional_('115904');
+  Logger.log(JSON.stringify(r));
+}
+
 function doGet(e) {
   var p = (e && e.parameter) || {};
   if (TOKEN && p.token !== TOKEN && p.action) return out_({ ok: false, error: 'token inválido' });
