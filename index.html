@@ -619,7 +619,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     updateBulk();
     $('count').textContent=state.rows.length+(state.rows.length===1?' fila':' filas');
     $('sendBtn').disabled=!state.rows.length||state.sent;
-    if($('repBtn'))$('repBtn').disabled=!ultimaFila();
+    if($('repBtn'))$('repBtn').disabled=!state.rows.length;
     if($('d_mes'))$('d_mes').disabled=state.rows.length>0;
     if($('d_mes'))$('d_mes').title=state.rows.length?'Enviá o eliminá las filas cargadas para cambiar de mes':'';
     document.body.classList.toggle('printable',!!state.sent);
@@ -1163,7 +1163,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   function xSync(){ORDER.forEach(function(f){$('f_'+f).classList.toggle('hasv',!!$('d_'+f).value)})}
   setInterval(xSync,250);document.addEventListener('input',xSync);
   /* mismo médico: repite fecha, matrícula y apellido de la fila anterior; después solo se dicta medicamento y cantidad */
-  function ultimaFila(){return state.rows.length?state.rows[state.rows.length-1]:(state.printRows&&state.printRows.length?state.printRows[state.printRows.length-1]:null)}
+  function ultimaFila(){return state.rows.length?state.rows[state.rows.length-1]:null}
   function repetirMedico(){
     var u=ultimaFila();
     if(!u){say($('micMsg'),'Todavía no hay una fila anterior para repetir.','warn');return}
