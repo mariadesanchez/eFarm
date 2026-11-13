@@ -752,41 +752,55 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   /* ---------- micrófono ---------- */
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition,rec=null,listening=false,wantOn=false;
   function setMic(on){listening=on;var t=on?'Escuchando… tocá para parar':'Empezar a dictar';$('micBtn').classList.toggle('on',on);$('micTxt').textContent=t;$('micBtn').title=t}
-  var noSpeech=0,lastText='',commitTimer=null,SILENCE_MS=600,FECHA_SILENCE_MS=1600,QTY_SILENCE_MS=250;
+  var noSpeech=0,lastText='',commitTimer=null,SILENCE_MS=900,FECHA_SILENCE_MS=1600,QTY_SILENCE_MS=450,NUM_SILENCE_MS=1300,POR_SILENCE_MS=1700;
+  /* El reconocedor sigue corriendo entre frases (no se corta ni se reinicia, así no se pierden palabras):
+     lo que ya se tomó se descuenta por cantidad de palabras de la misma frase en curso. */
+  var usedIdx=-1,usedWords=0;
+  function wordsOf(t){return String(t||'').trim().split(/\s+/).filter(Boolean)}
+  function restOf(t,idx){return (idx===usedIdx?wordsOf(t).slice(usedWords):wordsOf(t)).join(' ')}
   /* cuánto esperar en silencio antes de tomar lo dictado */
   function waitFor(t){
     var f=ORDER[cur];
+    if(/(^|\s)(por|equis|x|×|\*)$/i.test(t.trim()))return POR_SILENCE_MS;   /* dijo "por": falta lo que sigue */
     if(f==='fecha')return FECHA_SILENCE_MS;
     if(f==='cantidad'&&/^\d+$/.test(parseQty(t)))return QTY_SILENCE_MS;
+    if(/^\d+$/.test(numberWords(t).replace(/[\s.,]/g,'')))return NUM_SILENCE_MS;   /* números sueltos: puede estar deletreando */
     return SILENCE_MS;
   }
   function clearCommit(){if(commitTimer){clearTimeout(commitTimer);commitTimer=null}lastText=''}
+  var lastIdx=-1;
   function commitEarly(){
-    var t=lastText;clearCommit();
+    var t=lastText,idx=lastIdx;clearCommit();
     if(!t||!wantOn)return;
-    $('live').textContent=t;
-    applyUtterance([t]);
-    try{rec.abort()}catch(e){}   /* corta esta frase y reinicia enseguida para el campo siguiente */
+    var r=restOf(t,idx);if(!r)return;
+    $('live').textContent=r;
+    usedIdx=idx;usedWords=wordsOf(t).length;
+    applyUtterance([r]);
   }
+  function onResult(ev){
+    noSpeech=0;var interim='',iidx=-1;
+    for(var i=ev.resultIndex;i<ev.results.length;i++){
+      var res=ev.results[i];
+      if(res.isFinal){
+        clearCommit();
+        var alts=[];for(var k=0;k<res.length;k++){var a=restOf(res[k].transcript,i);if(a)alts.push(a)}
+        if(i===usedIdx){usedIdx=-1;usedWords=0}
+        if(alts.length){$('live').textContent=alts[0];applyUtterance(alts)}
+      }else{interim+=res[0].transcript;iidx=i}
+    }
+    if(interim){
+      var r=restOf(interim,iidx);
+      if(r)$('live').textContent=r;
+      if(interim!==lastText){lastText=interim;lastIdx=iidx;clearTimeout(commitTimer);if(r)commitTimer=setTimeout(commitEarly,waitFor(r))}
+    }
+  }
+  window.efarmOnResult=onResult;window.efarmQuerer=function(v){wantOn=v};
   function beginRecognition(){
     rec=new SR();rec.lang='es-AR';rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=5;
+    usedIdx=-1;usedWords=0;
     rec.onstart=function(){say($('micMsg'),'Micrófono encendido. Ya podés hablar.','ok')};
     rec.onspeechstart=function(){noSpeech=0;say($('micMsg'),'Te estoy escuchando…','ok')};
-    rec.onresult=function(ev){
-      noSpeech=0;var interim='';
-      for(var i=ev.resultIndex;i<ev.results.length;i++){
-        var res=ev.results[i];
-        if(res.isFinal){
-          clearCommit();
-          var alts=[];for(var k=0;k<res.length;k++)alts.push(res[k].transcript);
-          $('live').textContent=alts[0];applyUtterance(alts);
-        }else interim+=res[0].transcript;
-      }
-      if(interim){
-        $('live').textContent=interim;
-        if(interim!==lastText){lastText=interim;clearTimeout(commitTimer);commitTimer=setTimeout(commitEarly,waitFor(interim))}
-      }
-    };
+    rec.onresult=onResult;
     rec.onerror=function(ev){
       var e=ev.error;
       if(e==='not-allowed'||e==='service-not-allowed'){wantOn=false;say($('micMsg'),'El navegador bloqueó el micrófono. Tocá el candado junto a la dirección, permití el micrófono y recargá la página.','bad')}
@@ -796,7 +810,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       else if(e!=='aborted')say($('micMsg'),'Error de dictado: '+e,'warn');
     };
     rec.onend=function(){
-      clearCommit();
+      clearCommit();usedIdx=-1;usedWords=0;
       if(wantOn){setTimeout(function(){if(wantOn){try{rec.start()}catch(x){beginRecognition()}}},40)}
       else setMic(false);
     };
