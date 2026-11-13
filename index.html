@@ -44,8 +44,9 @@ h2{margin:0;font-size:19px;font-weight:800;color:var(--ink)}
 button.btn{border-radius:14px;padding:8px 16px;font-size:14px;line-height:1.2}
 button.btn.icon{padding:8px 11px;line-height:0}
 button.btn svg{width:19px;height:19px;display:block}
-button.btn:hover:not(:disabled),.micbtn:hover{transform:translateY(-1px);filter:brightness(1.05);box-shadow:0 6px 0 var(--btn-dark),0 12px 16px -8px rgba(77,106,10,.7),inset 0 2px 0 #ffffff77}
-button.btn:active:not(:disabled),.micbtn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--btn-dark),inset 0 2px 0 #ffffff55}
+.micbtn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.85)}
+button.btn:hover:not(:disabled),.micbtn:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.05);box-shadow:0 6px 0 var(--btn-dark),0 12px 16px -8px rgba(77,106,10,.7),inset 0 2px 0 #ffffff77}
+button.btn:active:not(:disabled),.micbtn:active:not(:disabled){transform:translateY(4px);box-shadow:0 1px 0 var(--btn-dark),inset 0 2px 0 #ffffff55}
 button.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:0 2px 0 var(--btn-dark)}
 button.btn:disabled{filter:grayscale(.85)}
 button.btn.danger{background:linear-gradient(180deg,#ee6a6a,var(--red));box-shadow:0 5px 0 var(--red-dark),0 10px 14px -8px rgba(143,31,31,.6),inset 0 2px 0 #ffffff66}
@@ -512,7 +513,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(ORDER[cur]==='descripcion'){afinarDesc();fillCantidad()}
     if(ORDER[cur]==='apellido')fillMatricula();
     if(repeatMed&&ORDER[cur]==='cantidad'){if(addRow())setCur(0);return}
-    if(ORDER[cur]==='matricula')fillApellido();
+    if(ORDER[cur]==='matricula'){fillApellido();buscarMedico()}
     var n=skipLocked(cur+1,1);
     if(n<ORDER.length){setCur(n);return}
     if(addRow())setCur(0);
@@ -816,7 +817,9 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     };
     try{rec.start()}catch(x){wantOn=false;setMic(false);say($('micMsg'),'No se pudo iniciar el dictado: '+x.message,'bad')}
   }
+  var VOZ_ACTIVA=false;   /* dictado por voz desactivado por ahora */
   function startMic(){
+    if(!VOZ_ACTIVA){say($('micMsg'),'El dictado por voz está desactivado por ahora: cargá escribiendo.','warn');return}
     if(!SR){say($('micMsg'),'Este navegador no tiene dictado por voz. Usá Google Chrome, o el micrófono del teclado del celular.','warn');return}
     if(location.protocol==='file:'){say($('micMsg'),'Abrí la página desde su dirección https (no como archivo) para usar el micrófono.','bad');return}
     wantOn=true;noSpeech=0;setMic(true);say($('micMsg'),'Pidiendo permiso del micrófono…');
@@ -1175,6 +1178,38 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(hits.length)ap.value=hits[0].a;
     if(!$('d_matricula').value.trim()&&hits.length===1)$('d_matricula').value=hits[0].m;
   }
+  /* matrícula que no está en la hoja: se busca el médico (Buenos Aires) en el Buscador Nacional de Profesionales de la Salud */
+  var medCache={},medBusy='';
+  function buscarMedico(){
+    var mat=matKey($('d_matricula').value),ap=$('d_apellido');
+    if(mat.length<4||ap.value.trim()||!APPS_SCRIPT_URL||lookupApellido(mat)||medBusy===mat)return;
+    function listo(r){
+      if(matKey($('d_matricula').value)!==mat||ap.value.trim())return;
+      var it=r.items||[];
+      if(it.length===1){
+        var x=it[0],hab=/habilitad/i.test(x.situacion||'');
+        ap.value=titleCase(x.apellido);apeAuto=true;ap.classList.remove('need');
+        say($('micMsg'),'Registro nacional: '+titleCase(x.apellido)+', '+titleCase(x.nombre)+' (Médico, Buenos Aires'+(x.situacion?', '+x.situacion.toLowerCase():'')+').',hab?'ok':'warn');
+      }else if(it.length>1){
+        ap.classList.add('need');
+        say($('micMsg'),'Hay '+it.length+' médicos de Buenos Aires con la matrícula '+mat+' ('+it.map(function(x){return titleCase(x.apellido)+' '+titleCase(x.nombre)}).join('; ')+'): escribí el apellido.','warn');
+      }else{
+        ap.classList.add('need');
+        say($('micMsg'),'No encontré un médico de Buenos Aires con la matrícula '+mat+' en el registro nacional: escribí el apellido (campo verde).','warn');
+      }
+    }
+    if(medCache[mat]){listo(medCache[mat]);return}
+    medBusy=mat;say($('micMsg'),'Buscando la matrícula '+mat+' en el registro nacional…');
+    fetch(APPS_SCRIPT_URL+'?action=profesional&matricula='+mat+'&token='+encodeURIComponent(TOKEN)).then(function(r){return r.json()}).then(function(r){
+      medBusy='';
+      if(!r||!r.ok)throw new Error((r&&r.error)||'respuesta inválida');
+      medCache[mat]=r;listo(r);
+    }).catch(function(e){
+      medBusy='';
+      if(matKey($('d_matricula').value)===mat&&!ap.value.trim()){ap.classList.add('need');say($('micMsg'),'No se pudo consultar el registro nacional ('+(e&&e.message||'error')+'): escribí el apellido.','warn')}
+    });
+  }
+  $('d_matricula').addEventListener('blur',function(){setTimeout(buscarMedico,150)});
   var suggMed=[],suggMedSel=-1;
   function medHide(){$('suggA').hidden=true;suggMedSel=-1}
   function medPick(i){
@@ -1305,6 +1340,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     $('d_'+f).addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();advance()}});
   });
   load();renderTable();refreshDraftId();
+  if(!VOZ_ACTIVA){$('micBtn').disabled=true;$('micBtn').title='Dictado por voz desactivado por ahora';$('live').textContent='Dictado por voz desactivado por ahora: cargá escribiendo.'}
   if(state.lockDate&&validDate(state.lockDate)){$('d_fecha').value=state.lockDate;$('d_lock').checked=true;syncLock()}
   setCur(0);
   /* mes: selector con casilla para dejarlo fijo; las filas se envían a la pestaña de ese mes */
