@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#7ba31f">
+<title>Matrículas de médicos</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+:root{
+  --bg:#f3f4ee; --card:#fff; --ink:#171a10; --muted:#7a7f6e; --line:#e8eadf;
+  --btn:#8db52f; --btn-dark:#4d6a0a; --btn-soft:#eef5d8; --green:#5f8412; --amber:#b86e00; --red:#d93a3a;
+  --field:#f6f7f0; --shadow:0 10px 30px -14px rgba(40,55,10,.3);
+  --font:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.45;
+  padding:22px max(16px,env(safe-area-inset-right,0px)) 56px max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{position:relative;overflow:hidden;display:flex;align-items:center;gap:18px;padding:22px 24px;border-radius:30px;color:#fff;
+  background:radial-gradient(circle at 88% 12%,#d6ef8a 0,#b9dd5a 18%,transparent 42%),linear-gradient(135deg,#5f8412 0,#7ba31f 45%,#9cc43a 100%);
+  box-shadow:0 9px 0 #4d6a0a,0 22px 34px -12px rgba(77,106,10,.65),inset 0 2px 0 #ffffff55}
+header::after{content:"✚";position:absolute;left:52%;top:-34px;font-size:120px;font-weight:900;color:#ffffff14;transform:rotate(14deg);pointer-events:none}
+header>*{position:relative;z-index:1}
+.logo{flex:none;width:64px;height:64px;border-radius:22px;display:grid;place-items:center;font-size:38px;font-weight:900;color:#6f9418;background:linear-gradient(160deg,#fff 0,#eef5d8 100%)}
+header h1{margin:0;font-size:32px;font-weight:800;color:#fff;letter-spacing:-.02em;line-height:1.05;text-shadow:0 3px 0 #4d6a0a88}
+header p{margin:6px 0 0;color:#ffffffe6;font-weight:700;font-size:15px}
+.volver{margin-left:auto;color:#fff;font-weight:800;font-size:14px;text-decoration:none;background:#ffffff26;border-radius:14px;padding:8px 14px;white-space:nowrap}
+.volver:hover{background:#ffffff40}
+.card{background:var(--card);border-radius:26px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:16px;min-width:0}
+.hint{margin:0;color:var(--muted);font-weight:700;font-size:14px}
+.campo{position:relative}
+.campo input{font:inherit;font-size:19px;font-weight:700;color:var(--ink);background:var(--field);border:2px solid var(--line);border-radius:16px;padding:14px 48px 14px 16px;width:100%;box-shadow:inset 0 3px 0 #0000000d}
+.campo input:focus{outline:0;border-color:var(--btn)}
+.campo input::placeholder{color:#a3a791;font-weight:600}
+.clr{position:absolute;right:10px;top:50%;margin-top:-14px;width:28px;height:28px;border:0;border-radius:50%;padding:0;cursor:pointer;font-size:18px;font-weight:800;line-height:1;color:#fff;background:#b9dd5a00;display:none;align-items:center;justify-content:center}
+.campo.hasv .clr{display:flex;background:#b9bea6}
+.campo.hasv .clr:hover{background:var(--red)}
+.botones{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+button.btn{font:inherit;font-weight:800;font-size:17px;cursor:pointer;color:#fff;border:0;border-radius:16px;padding:14px 12px;line-height:1.2;
+  background:linear-gradient(180deg,#a3cc3f,var(--btn));box-shadow:0 5px 0 var(--btn-dark),0 10px 14px -8px rgba(77,106,10,.6),inset 0 2px 0 #ffffff66;transition:transform .08s,box-shadow .08s}
+button.btn:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.05)}
+button.btn:active:not(:disabled){transform:translateY(4px);box-shadow:0 1px 0 var(--btn-dark),inset 0 2px 0 #ffffff55}
+button.btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.85)}
+.msg{margin:0;font-weight:700;font-size:15px;color:var(--muted)}
+.msg.ok{color:var(--green)}.msg.warn{color:var(--amber)}.msg.bad{color:var(--red)}
+.res{display:flex;flex-direction:column;gap:12px}
+.item{display:grid;grid-template-columns:1fr auto;gap:6px 14px;align-items:center;background:var(--field);border:2px solid var(--line);border-radius:18px;padding:14px 16px}
+.nom{font-size:19px;font-weight:800;line-height:1.2}
+.mat{font-size:19px;font-weight:800;color:var(--green);text-align:right}
+.det{grid-column:1/-1;color:var(--muted);font-size:14px;font-weight:700;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tag{display:inline-block;background:var(--btn-soft);color:var(--green);border-radius:999px;padding:2px 10px;font-weight:800;font-size:13px}
+.tag.no{background:#fde7e7;color:var(--red)}
+.cp{font:inherit;font-size:13px;font-weight:800;border:0;border-radius:10px;padding:5px 10px;cursor:pointer;color:var(--green);background:var(--btn-soft)}
+.cp:hover{filter:brightness(.96)}
+@media (max-width:560px){
+  header{padding:18px}header h1{font-size:26px}.logo{width:52px;height:52px;font-size:30px}.volver{display:none}
+  .botones{grid-template-columns:1fr}.item{grid-template-columns:1fr}.mat{text-align:left}
+}
+</style></head><body>
+<div class="wrap">
+  <header>
+    <span class="logo" aria-hidden="true">✚</span>
+    <div><h1>Matrículas de médicos</h1><p>Buenos Aires · CABA</p></div>
+    <a class="volver" href="./">← eFarm</a>
+  </header>
+
+  <section class="card" aria-label="Buscar médico">
+    <p class="hint">Escribí la <b>matrícula</b> para ver el médico, o su <b>apellido y nombre</b> para ver la matrícula. Después elegí dónde buscar.</p>
+    <div class="campo" id="campo">
+      <input id="q" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="search" placeholder="Matrícula, o apellido y nombre" aria-label="Matrícula, o apellido y nombre">
+      <button class="clr" id="clr" type="button" tabindex="-1" aria-label="Borrar">×</button>
+    </div>
+    <div class="botones">
+      <button class="btn" id="bBA" type="button">Buscar en Buenos Aires</button>
+      <button class="btn" id="bCABA" type="button">Buscar en CABA</button>
+    </div>
+    <p class="msg" id="msg" aria-live="polite"></p>
+    <div class="res" id="res"></div>
+  </section>
+</div>
+<script>
+(function(){
+  /* mismo script de Google que eFarm */
+  var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbyqZojWiovsXQcTUVq9q8buXm30dbD_L2M34hnoM-xZAkRu5xej2o97Q6OwbIIzhSva/exec';
+  var TOKEN='';
+  var $=function(id){return document.getElementById(id)};
+  var busy=false,ultima='buenosaires';
+  var NOMBRE={buenosaires:'Buenos Aires',caba:'CABA'};
+  function titleCase(s){return String(s||'').trim().toLowerCase().replace(/\S+/g,function(w){return w.charAt(0).toUpperCase()+w.slice(1)})}
+  function esc(t){return String(t==null?'':t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function say(t,c){var m=$('msg');m.textContent=t||'';m.className='msg'+(c?' '+c:'')}
+  function sync(){$('campo').classList.toggle('hasv',!!$('q').value)}
+  $('q').addEventListener('input',sync);
+  $('clr').addEventListener('click',function(){$('q').value='';sync();$('res').innerHTML='';say('');$('q').focus()});
+  function copiar(txt,btn){
+    var ok=function(){var t=btn.textContent;btn.textContent='¡Copiado!';setTimeout(function(){btn.textContent=t},1200)};
+    try{navigator.clipboard.writeText(txt).then(ok,function(){})}catch(e){}
+  }
+  function buscar(prov){
+    var q=$('q').value.trim().replace(/\s+/g,' ');
+    if(!q){say('Escribí una matrícula, o un apellido y nombre.','warn');$('q').focus();return}
+    if(!/^\d+$/.test(q)&&q.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g,'').length<4){say('Escribí al menos 4 letras del apellido.','warn');return}
+    if(/^\d+$/.test(q)&&(q.length<3||q.length>9)){say('La matrícula tiene que tener entre 3 y 9 números.','warn');return}
+    if(busy)return;
+    busy=true;ultima=prov;$('bBA').disabled=$('bCABA').disabled=true;$('res').innerHTML='';
+    say('Buscando en '+NOMBRE[prov]+'…');
+    fetch(APPS_SCRIPT_URL+'?action=medicos&provincia='+prov+'&q='+encodeURIComponent(q)+'&token='+encodeURIComponent(TOKEN))
+      .then(function(r){return r.json()})
+      .then(function(r){
+        if(!r||!r.ok)throw new Error((r&&r.error)||'respuesta inválida');
+        mostrar(r,prov,q);
+      })
+      .catch(function(e){say('No se pudo consultar el registro nacional ('+(e&&e.message||'error')+'). Probá de nuevo en un momento.','bad')})
+      .then(function(){busy=false;$('bBA').disabled=$('bCABA').disabled=false});
+  }
+  function mostrar(r,prov,q){
+    var it=r.items||[],box=$('res');box.innerHTML='';
+    if(!it.length){
+      say('No encontré médicos en '+NOMBRE[prov]+' para "'+q+'".'+(r.limite?' Hay muchas coincidencias en el país: probá con apellido y nombre.':''),'warn');
+      return;
+    }
+    var porMat=r.por==='matricula';
+    say(it.length+(it.length===1?' médico en ':' médicos en ')+NOMBRE[prov]+(porMat?' con la matrícula '+q+'.':'.')+(r.limite?' Hay más de 50 coincidencias en el país: agregá el nombre para afinar.':''),r.limite?'warn':'ok');
+    it.forEach(function(x){
+      var nombre=titleCase(x.apellido)+' '+titleCase(x.nombre),hab=/habilitad/i.test(x.situacion||'');
+      var d=document.createElement('div');d.className='item';
+      d.innerHTML='<div class="nom">'+esc(nombre)+'</div><div class="mat">Mat. '+esc(x.matricula)+'</div>'+
+        '<div class="det"><span class="tag">'+esc(x.provincia)+'</span>'+
+        (x.situacion?'<span class="tag'+(hab?'':' no')+'">'+esc(x.situacion)+'</span>':'')+
+        (x.especialidad?'<span>'+esc(x.especialidad)+'</span>':'')+
+        '<button class="cp" type="button" data-t="'+esc(nombre)+'">Copiar nombre</button>'+
+        '<button class="cp" type="button" data-t="'+esc(x.matricula)+'">Copiar matrícula</button></div>';
+      box.appendChild(d);
+    });
+  }
+  $('res').addEventListener('click',function(e){var b=e.target.closest('.cp');if(b)copiar(b.getAttribute('data-t'),b)});
+  $('bBA').addEventListener('click',function(){buscar('buenosaires')});
+  $('bCABA').addEventListener('click',function(){buscar('caba')});
+  $('q').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();buscar(ultima)}});
+})();
+</script>
+</body></html>

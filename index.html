@@ -128,6 +128,8 @@ td.act .sel{margin:0 6px;vertical-align:middle}
 .mes-in select:disabled{opacity:.6;cursor:not-allowed}
 .mes-in label{cursor:default}
 #d_mes_lock{width:26px;height:26px;margin:0;accent-color:var(--btn);cursor:pointer;flex:none}
+.lnk-mat{margin-left:auto;font-size:14px;font-weight:800;color:var(--green);text-decoration:none;background:var(--btn-soft);border-radius:12px;padding:7px 12px;white-space:nowrap}
+.lnk-mat:hover{filter:brightness(.96)}
 .mes-fix{font-size:13px;color:var(--muted)}
 #d_lock{width:26px;height:26px;margin:0;accent-color:var(--btn);cursor:pointer;flex:none}
 .f.locked input[type=text]{border-color:var(--green)}
@@ -246,7 +248,8 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   <section class="card" id="entry" aria-label="Carga por voz">
     <div class="row"><label class="id-in">Número de la próxima fila <input type="number" id="d_id" min="0" step="1" inputmode="numeric"></label>
       <div class="id-in mes-in"><label for="d_mes">Mes</label><select id="d_mes" aria-label="Mes al que se envían las filas"></select>
-        <input type="checkbox" id="d_mes_lock" title="Dejar fijo este mes" aria-label="Dejar fijo este mes"><span class="mes-fix">Fijar</span></div></div>
+        <input type="checkbox" id="d_mes_lock" title="Dejar fijo este mes" aria-label="Dejar fijo este mes"><span class="mes-fix">Fijar</span></div>
+      <a class="lnk-mat" href="matriculas-medico-buenos-aires-caba.html" target="_blank" rel="noopener">🔎 Buscar matrículas</a></div>
     <div class="top">
       <button class="micbtn" id="micBtn" type="button" title="Empezar a dictar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M9 21h6"/></svg>

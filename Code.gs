@@ -173,46 +173,76 @@ function mismaFila_(sh, row, body) {
 // Consulta pública del Buscador Nacional de Profesionales de la Salud (REFEPS): devuelve los MÉDICOS de la provincia
 // de Buenos Aires que tienen esa matrícula. Se pide la página, se toma el formulario y se envía igual que lo haría el navegador.
 var REFEPS_URL = 'https://www.argentina.gob.ar/salud/buscador-nacional-de-profesionales-de-la-salud';
-function buscarProfesional_(matricula) {
-  var mat = String(matricula || '').replace(/\D/g, '');
-  if (mat.length < 4 || mat.length > 9) throw new Error('matrícula inválida');
-  var cache = CacheService.getScriptCache(), key = 'refeps_' + mat;
-  var hit = cache.get(key);
-  if (hit) return JSON.parse(hit);
 
+// Envía el formulario del buscador (por matrícula o por apellido/nombre) y devuelve la lista de profesionales encontrados.
+function consultarRefeps_(searchBy, valor) {
   var page = UrlFetchApp.fetch(REFEPS_URL, { muteHttpExceptions: true }).getContentText();
   var at = page.indexOf('consulta-profesionales-form');
   var bid = at >= 0 ? /name="form_build_id" value="([^"]+)"/.exec(page.slice(at)) : null;
   if (!bid) throw new Error('el buscador nacional cambió su formulario');
   var resp = UrlFetchApp.fetch(REFEPS_URL, {
     method: 'post', muteHttpExceptions: true, followRedirects: true,
-    payload: { searchBy: 'matricula', dni: '', matricula: mat, apellidonombre: '', form_build_id: bid[1],
+    payload: { searchBy: searchBy, dni: '', matricula: searchBy === 'matricula' ? valor : '',
+               apellidonombre: searchBy === 'apellido-nombre' ? valor : '', form_build_id: bid[1],
                form_id: 'argobar_consulta_refeps_profesionales', tarro_de_miel: '', op: 'Consultar' }
   });
   var html = resp.getContentText();
-  var m = /allItems\s*=\s*(\[[\s\S]*?\]);\s*\n/.exec(html), all = [];
-  if (m) all = JSON.parse(m[1]);
-  else if (html.indexOf('resultados encontrados') < 0 && html.indexOf('refepsProfesionales') < 0 && html.indexOf('No se encontr') < 0) {
+  var m = /allItems\s*=\s*(\[[\s\S]*?\]);\s*\n/.exec(html);
+  if (m) return JSON.parse(m[1]);
+  if (html.indexOf('resultados encontrados') < 0 && html.indexOf('refepsProfesionales') < 0 && html.indexOf('No se encontr') < 0) {
     throw new Error('el buscador nacional no respondió como se esperaba');
   }
-  var items = [];
+  return [];
+}
+
+// Médicos (solo médicos) con matrícula en la provincia pedida: 'buenosaires' o 'caba'. Una fila por persona y matrícula.
+function medicosDe_(all, provincia, matriculaPedida) {
+  var out = [], seen = {};
   all.forEach(function (x) {
-    var ok = (x.profesiones || []).some(function (p) {
-      return norm_(p.profesionReferencia) === 'medico' && (p.matriculas || []).some(function (mm) {
-        return String(mm.matricula).replace(/\D/g, '') === mat && norm_(mm.provinciaMatricula) === 'buenosaires';
-      });
-    });
-    if (!ok) return;
-    var mm0 = null, esp = '';
     (x.profesiones || []).forEach(function (p) {
       if (norm_(p.profesionReferencia) !== 'medico') return;
       (p.matriculas || []).forEach(function (mm) {
-        if (!mm0 && String(mm.matricula).replace(/\D/g, '') === mat && norm_(mm.provinciaMatricula) === 'buenosaires') { mm0 = mm; esp = p.refepsEspecialidad || ''; }
+        var mat = String(mm.matricula).replace(/\D/g, '');
+        if (norm_(mm.provinciaMatricula) !== provincia) return;
+        if (matriculaPedida && mat !== matriculaPedida) return;
+        var k = x.apellido + '|' + x.nombre + '|' + mat;
+        if (seen[k]) return;
+        seen[k] = 1;
+        out.push({ apellido: x.apellido, nombre: x.nombre, matricula: mat, provincia: mm.provinciaMatricula,
+                   situacion: mm.situacionMatricula || '', especialidad: p.refepsEspecialidad || '' });
       });
     });
-    items.push({ apellido: x.apellido, nombre: x.nombre, situacion: mm0 ? mm0.situacionMatricula : '', especialidad: esp });
   });
-  var out = { items: items, total: all.length };
+  return out;
+}
+
+// Para eFarm: médicos de Buenos Aires con esa matrícula.
+function buscarProfesional_(matricula) {
+  var mat = String(matricula || '').replace(/\D/g, '');
+  if (mat.length < 4 || mat.length > 9) throw new Error('matrícula inválida');
+  var cache = CacheService.getScriptCache(), key = 'refeps_' + mat;
+  var hit = cache.get(key);
+  if (hit) return JSON.parse(hit);
+  var all = consultarRefeps_('matricula', mat);
+  var out = { items: medicosDe_(all, 'buenosaires', mat).map(function (x) {
+    return { apellido: x.apellido, nombre: x.nombre, situacion: x.situacion, especialidad: x.especialidad };
+  }), total: all.length };
+  cache.put(key, JSON.stringify(out), 21600);
+  return out;
+}
+
+// Para la página de matrículas: por matrícula (solo números) o por apellido y nombre (al menos 4 letras), en una provincia.
+function buscarMedicos_(consulta, provincia) {
+  var q = String(consulta || '').trim().replace(/\s+/g, ' ');
+  var prov = norm_(provincia) === 'caba' ? 'caba' : 'buenosaires';
+  var porMat = /^\d+$/.test(q);
+  if (porMat) { if (q.length < 3 || q.length > 9) throw new Error('matrícula inválida'); }
+  else if (norm_(q).length < 4) throw new Error('escribí al menos 4 letras');
+  var cache = CacheService.getScriptCache(), key = 'refeps2_' + prov + '_' + (porMat ? 'm' : 'n') + norm_(q);
+  var hit = cache.get(key);
+  if (hit) return JSON.parse(hit);
+  var all = consultarRefeps_(porMat ? 'matricula' : 'apellido-nombre', q);
+  var out = { items: medicosDe_(all, prov, porMat ? q : ''), total: all.length, limite: !porMat && all.length >= 50, por: porMat ? 'matricula' : 'nombre' };
   cache.put(key, JSON.stringify(out), 21600);
   return out;
 }
@@ -251,6 +281,11 @@ function doGet(e) {
 
   if (p.action === 'profesional') {
     try { var r = buscarProfesional_(p.matricula); return out_({ ok: true, items: r.items, total: r.total }); }
+    catch (err) { return out_({ ok: false, error: String(err && err.message || err) }); }
+  }
+
+  if (p.action === 'medicos') {
+    try { var rm = buscarMedicos_(p.q, p.provincia); return out_({ ok: true, items: rm.items, total: rm.total, limite: rm.limite, por: rm.por }); }
     catch (err) { return out_({ ok: false, error: String(err && err.message || err) }); }
   }
 
