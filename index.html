@@ -676,6 +676,24 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     }
     if(addRow())setCur(0);
   }
+  /* cierre de una receta dictada: con la matrícula puesta, si se conoce el médico se agrega la fila; si no, el apellido queda en verde */
+  function cierraReceta(){
+    var ap=$('d_apellido');fillApellido();
+    if(ap.value.trim()){if(addRow())setCur(0);return}
+    ap.classList.add('need');setCur(4);ap.focus();
+    say($('micMsg'),'No encontré la matrícula '+$('d_matricula').value+': escribí o dictá el apellido (campo verde).','warn');
+  }
+  /* "por 30 114488": el primer número es la cantidad; los que siguen (aunque los deletree) son la matrícula */
+  function cantidadYMatricula(txt){
+    var ns=numberWords(txt).match(/\d+/g)||[];
+    if(!ns.length)return false;
+    $('d_cantidad').value=ns[0];qtyAuto=false;
+    var extra=ns.slice(1).join('');
+    advance();
+    if(extra){$('d_matricula').value=extra;if(ORDER[cur]==='matricula')cierraReceta();else fillApellido()}
+    return true;
+  }
+  var POR=/(^|\s)(?:por|equis|x|×)(?=\s|$)\s*/i;
   window.efarmDictar=function(t){applyUtterance([t])};
   function applyUtterance(alts){
     var first=alts[0].trim().replace(/[.,!?]+$/,'');if(!first)return;
@@ -686,6 +704,28 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(/^(borrar|repetir)$/.test(n)){$('d_'+ORDER[cur]).value='';return}
     if(cur===0){var rc=parseReceta(alts);if(rc){cargarReceta(rc);return}}
     var f=ORDER[cur],v;
+    /* la palabra "por" no se escribe en ningún campo: separa el medicamento de la cantidad */
+    if(f==='descripcion'&&alts.some(function(a){return POR.test(a)})){
+      var best0=null;
+      alts.forEach(function(a){
+        var mm=POR.exec(a),left=(mm?a.slice(0,mm.index):a).trim();if(!left)return;
+        var c=correctDesc(left);if(!best0||c.score>best0.score+0.01)best0=c;
+      });
+      var m0=POR.exec(first),rest0=m0?first.slice(m0.index+m0[0].length).trim():'';
+      if(best0){$('d_descripcion').value=best0.text;say($('micMsg'),'');advance();if(rest0)cantidadYMatricula(rest0);return}
+    }
+    if(f==='cantidad'){
+      var m1=POR.exec(first),t1=m1?first.slice(m1.index+m1[0].length).trim():first;
+      say($('micMsg'),'');
+      if(cantidadYMatricula(t1||first))return;
+    }
+    if(f==='apellido'&&/^\d+$/.test(numberWords(first).replace(/[\s.,]/g,''))&&!$('d_apellido').value.trim()){
+      /* matrícula deletreada en partes: lo que llega suma dígitos a la matrícula */
+      $('d_matricula').value=($('d_matricula').value+numberWords(first).replace(/\D/g,'')).slice(0,7);say($('micMsg'),'');cierraReceta();return;
+    }
+    if(f==='matricula'){
+      $('d_matricula').value=digitsOnly(first).replace(/\D/g,'')||digitsOnly(first);say($('micMsg'),'');cierraReceta();return;
+    }
     if(f==='descripcion'){
       var best=null;
       alts.forEach(function(a){var c=correctDesc(a);if(!best||c.score>best.score+0.01)best=c});
