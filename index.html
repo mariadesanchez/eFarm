@@ -264,7 +264,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     </div>
     <div class="row">
       <span class="sp"></span>
-      <button class="btn" id="repBtn" type="button" title="Repite la fecha, la matrícula y el apellido de la fila anterior; solo dictás el medicamento y la cantidad">↻ Mismo médico</button>
+      <button class="btn" id="repBtn" type="button" disabled title="Repite la fecha, la matrícula y el apellido de la fila anterior; solo dictás el medicamento y la cantidad">↻ Mismo médico</button>
       <button class="btn main" id="addBtn" type="button">+ Fila</button>
     </div>
   </section>
@@ -620,7 +620,8 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     updateBulk();
     $('count').textContent=state.rows.length+(state.rows.length===1?' fila':' filas');
     $('sendBtn').disabled=!state.rows.length||state.sent;
-    if($('repBtn'))$('repBtn').disabled=!state.rows.length;
+    if(ultAgregada&&state.rows.indexOf(ultAgregada)<0)ultAgregada=null;
+    syncRep();
     if($('d_mes'))$('d_mes').disabled=state.rows.length>0;
     if($('d_mes'))$('d_mes').title=state.rows.length?'Enviá o eliminá las filas cargadas para cambiar de mes':'';
     document.body.classList.toggle('printable',!!state.sent);
@@ -634,9 +635,9 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(!mesOk(r.fecha,mesTab(),{foco:$('d_fecha'),alAceptar:function(){}}))return false;
     if(!r.id&&numera()){say($('micMsg'),'Escribí el número de la fila antes de agregar.','warn');$('d_id').focus();return false}
     if(!r.descripcion){say($('micMsg'),'Falta el medicamento.','warn');return false}
-    state.rows.push(r);save();renderTable();
+    state.rows.push(r);ultAgregada=r;save();renderTable();
     ORDER.forEach(function(f){if(f==='fecha'&&dateLocked())return;$('d_'+f).value=''});apeAuto=false;qtyAuto=false;repeatMed=false;
-    refreshDraftId(true);
+    refreshDraftId(true);syncRep();
     say($('micMsg'),(r.id?'Fila '+r.id:'Fila')+' agregada.','ok');
     return true;
   }
@@ -1161,10 +1162,16 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       inp.focus();setCur(k);xSync();
     });
   });
-  function xSync(){ORDER.forEach(function(f){$('f_'+f).classList.toggle('hasv',!!$('d_'+f).value)})}
+  function xSync(){ORDER.forEach(function(f){$('f_'+f).classList.toggle('hasv',!!$('d_'+f).value)});syncRep()}
   setInterval(xSync,250);document.addEventListener('input',xSync);
   /* mismo médico: repite fecha, matrícula y apellido de la fila anterior; después solo se dicta medicamento y cantidad */
-  function ultimaFila(){return state.rows.length?state.rows[state.rows.length-1]:null}
+  /* "Mismo médico" solo se activa recién agregada una fila (con el formulario vacío): la siguiente puede ser del mismo médico */
+  var ultAgregada=null;
+  function formVacio(){
+    return !$('d_descripcion').value&&!$('d_cantidad').value&&!$('d_matricula').value&&!$('d_apellido').value&&(!$('d_fecha').value||dateLocked());
+  }
+  function syncRep(){var b=$('repBtn');if(b)b.disabled=!(ultAgregada&&formVacio())}
+  function ultimaFila(){return ultAgregada}
   function repetirMedico(){
     var u=ultimaFila();
     if(!u){say($('micMsg'),'Todavía no hay una fila anterior para repetir.','warn');return}
