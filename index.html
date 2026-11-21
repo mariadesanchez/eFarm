@@ -514,7 +514,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   var repeatMed=false;
   function advance(){
     if(ORDER[cur]==='descripcion'){afinarDesc();fillCantidad()}
-    if(ORDER[cur]==='apellido')fillMatricula();
+    if(ORDER[cur]==='apellido'){fillCantidadMedico();fillMatricula()}
     if(repeatMed&&ORDER[cur]==='cantidad'){if(addRow())setCur(0);return}
     if(ORDER[cur]==='matricula'){fillApellido();buscarMedico()}
     var n=skipLocked(cur+1,1);
@@ -1035,16 +1035,23 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     return t;
   }
   function topOf(o){var b='',n=0;Object.keys(o).forEach(function(k){if(o[k]>n){n=o[k];b=k}});return b}
+  function docKeys(mat,ape){
+    var out=[],m=String(mat||'').replace(/\D/g,''),a=norm(String(ape||'')).replace(/[^a-z]/g,'');
+    if(m)out.push('m'+m);if(a)out.push('a'+a.slice(0,12));return out;
+  }
   function buildProd(rows){
     var all={};
     rows.forEach(function(q){
       var d=q.values.descripcion,k=prodKey(d);if(!k)return;
-      var e=all[k]||(all[k]={v:{},q:{},c:0});
+      var e=all[k]||(all[k]={v:{},q:{},c:0,d:{}});
       var nm=niceName(d);e.v[nm]=(e.v[nm]||0)+1;e.c++;
       var qt=String(q.values.cantidad||'').trim();if(qt)e.q[qt]=(e.q[qt]||0)+1;
+      if(qt)docKeys(q.values.matricula,q.values.apellido).forEach(function(dk){var o=e.d[dk]||(e.d[dk]={});o[qt]=(o[qt]||0)+1});
     });
     var out={};
-    Object.keys(all).forEach(function(k){var tq=topOf(all[k].q);out[k]={n:topOf(all[k].v),q:tq,qc:tq?all[k].q[tq]:0,c:all[k].c}});
+    Object.keys(all).forEach(function(k){var tq=topOf(all[k].q),dd={};
+      Object.keys(all[k].d).forEach(function(dk){var t=topOf(all[k].d[dk]);dd[dk]=[t,all[k].d[dk][t]]});
+      out[k]={n:topOf(all[k].v),q:tq,qc:tq?all[k].q[tq]:0,c:all[k].c,d:dd}});
     return out;
   }
   function prodInfo(k){
@@ -1088,7 +1095,26 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     if(q&&(!c.value.trim()||qtyAuto)){c.value=q;qtyAuto=true}
     else if(!q&&qtyAuto){c.value='';qtyAuto=false}
   }
+  /* cantidad que ese médico más veces receta para ese medicamento y dosis (hoja + tanda actual) */
+  function fillCantidadMedico(){
+    var c=$('d_cantidad'),k=prodKey($('d_descripcion').value);
+    if(!k||(c.value.trim()&&!qtyAuto))return;
+    var dks=docKeys($('d_matricula').value,$('d_apellido').value);if(!dks.length)return;
+    var base=prodStats[k],qs={};
+    dks.forEach(function(dk){
+      var b=base&&base.d&&base.d[dk];
+      if(b&&b[0]){qs[b[0]]=Math.max(qs[b[0]]||0,b[1])}
+    });
+    state.rows.forEach(function(r){
+      if(prodKey(r.descripcion)!==k||!r.cantidad)return;
+      var rk=docKeys(r.matricula,r.apellido);
+      if(dks.some(function(x){return rk.indexOf(x)>=0}))qs[r.cantidad]=(qs[r.cantidad]||0)+1;
+    });
+    var q=topOf(qs);
+    if(q){c.value=q;qtyAuto=true}
+  }
   $('d_cantidad').addEventListener('input',function(){qtyAuto=false});
+  $('d_apellido').addEventListener('change',fillCantidadMedico);
   $('d_descripcion').addEventListener('change',function(){afinarDesc();fillCantidad()});
   try{var sc=JSON.parse(localStorage.getItem(SKEY)||'[]');if(Array.isArray(sc))suggAll=sc}catch(e){}
   function suggPool(){
