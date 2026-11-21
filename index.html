@@ -1044,14 +1044,18 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       var qt=String(q.values.cantidad||'').trim();if(qt)e.q[qt]=(e.q[qt]||0)+1;
     });
     var out={};
-    Object.keys(all).forEach(function(k){out[k]={n:topOf(all[k].v),q:topOf(all[k].q),c:all[k].c}});
+    Object.keys(all).forEach(function(k){var tq=topOf(all[k].q);out[k]={n:topOf(all[k].v),q:tq,qc:tq?all[k].q[tq]:0,c:all[k].c}});
     return out;
   }
   function prodInfo(k){
     if(!k)return null;
-    if(prodStats[k])return prodStats[k];
-    for(var i=state.rows.length-1;i>=0;i--){if(prodKey(state.rows[i].descripcion)===k)return {n:niceName(state.rows[i].descripcion),q:'',c:1}}
-    return null;
+    /* cantidades de la hoja + las ya cargadas en esta tanda: gana la más repetida */
+    var base=prodStats[k],qs={},n=0,nm='';
+    if(base&&base.q)qs[base.q]=base.qc||base.c||1;
+    state.rows.forEach(function(r){if(prodKey(r.descripcion)===k){nm=nm||niceName(r.descripcion);var q=String(r.cantidad||'').trim();if(q){qs[q]=(qs[q]||0)+1;n++}}});
+    if(!base&&!nm)return null;
+    var top=topOf(qs);
+    return {n:base?base.n:nm,q:top||(base&&base.q)||'',c:(base?base.c:0)+n};
   }
   /* el mismo producto mal escrito (zolpiden, pregalina…) se lleva al nombre conocido; la dosis tiene que ser la misma */
   function prodFuzzy(k){
@@ -1085,6 +1089,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     else if(!q&&qtyAuto){c.value='';qtyAuto=false}
   }
   $('d_cantidad').addEventListener('input',function(){qtyAuto=false});
+  $('d_descripcion').addEventListener('change',function(){afinarDesc();fillCantidad()});
   try{var sc=JSON.parse(localStorage.getItem(SKEY)||'[]');if(Array.isArray(sc))suggAll=sc}catch(e){}
   function suggPool(){
     var seen={},out=[];
