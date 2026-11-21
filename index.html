@@ -513,7 +513,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   function skipLocked(n,dir){return ORDER[n]==='fecha'&&dateLocked()?n+dir:n}
   var repeatMed=false;
   function advance(){
-    if(ORDER[cur]==='descripcion'){afinarDesc();fillCantidad()}
+    if(ORDER[cur]==='descripcion'){afinarDesc();fillCantidad();fillCantidadMedico()}
     if(ORDER[cur]==='apellido'){fillCantidadMedico();fillMatricula()}
     if(repeatMed&&ORDER[cur]==='cantidad'){if(addRow())setCur(0);return}
     if(ORDER[cur]==='matricula'){fillApellido();buscarMedico()}
@@ -1050,7 +1050,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
     });
     var out={};
     Object.keys(all).forEach(function(k){var tq=topOf(all[k].q),dd={};
-      Object.keys(all[k].d).forEach(function(dk){var t=topOf(all[k].d[dk]);dd[dk]=[t,all[k].d[dk][t]]});
+      Object.keys(all[k].d).forEach(function(dk){var t=topOf(all[k].d[dk]);dd[dk]=[t,all[k].d[dk][t],Object.keys(all[k].d[dk]).reduce(function(a,x){return a+all[k].d[dk][x]},0)]});
       out[k]={n:topOf(all[k].v),q:tq,qc:tq?all[k].q[tq]:0,c:all[k].c,d:dd}});
     return out;
   }
@@ -1115,7 +1115,22 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   }
   $('d_cantidad').addEventListener('input',function(){qtyAuto=false});
   $('d_apellido').addEventListener('change',fillCantidadMedico);
-  $('d_descripcion').addEventListener('change',function(){afinarDesc();fillCantidad()});
+  /* medicamentos que ya recetó el médico cargado en el formulario: {nombre: veces} */
+  function docMeds(){
+    var dks=docKeys($('d_matricula').value,$('d_apellido').value),out={};
+    if(!dks.length)return out;
+    Object.keys(prodStats).forEach(function(k){
+      var p=prodStats[k],best=0;
+      dks.forEach(function(dk){var b=p.d&&p.d[dk];if(b&&b[2]>best)best=b[2]});
+      if(best)out[p.n]=best;
+    });
+    state.rows.forEach(function(r){
+      var rk=docKeys(r.matricula,r.apellido);
+      if(dks.some(function(x){return rk.indexOf(x)>=0})){var n=niceName(r.descripcion);out[n]=(out[n]||0)+1}
+    });
+    return out;
+  }
+  $('d_descripcion').addEventListener('change',function(){afinarDesc();fillCantidad();fillCantidadMedico()});
   try{var sc=JSON.parse(localStorage.getItem(SKEY)||'[]');if(Array.isArray(sc))suggAll=sc}catch(e){}
   function suggPool(){
     var seen={},out=[];
@@ -1143,14 +1158,16 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       var rank=n.indexOf(q)===0?0:(n.indexOf(' '+q)>=0?1:(toks.every(function(w){return n.indexOf(w)===0||n.indexOf(' '+w)>=0})?2:3));
       scored.push({t:t,rank:rank,i:i});
     });
-    scored.sort(function(a,b){return a.rank-b.rank||a.i-b.i});
+    var dm=docMeds(),hasDm=Object.keys(dm).length>0;
+    scored.forEach(function(x){x.dc=dm[x.t]||0});
+    scored.sort(function(a,b){return (hasDm?(b.dc>0)-(a.dc>0)||b.dc-a.dc:0)||a.rank-b.rank||a.i-b.i});
     suggCur=scored.slice(0,6).map(function(x){return x.t});
     if(!suggCur.length){suggHide();return}
     var re=new RegExp('('+toks.filter(Boolean).map(function(w){return w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}).join('|')+')','gi');
     $('sugg').innerHTML=suggCur.map(function(t,i){
       return '<li role="option" data-i="'+i+'">'+esc(t).replace(re,function(m){return '<mark>'+m+'</mark>'})+'</li>';
     }).join('');
-    suggSel=-1;$('sugg').hidden=false;$('d_descripcion').setAttribute('aria-expanded','true');
+    suggSel=hasDm&&scored[0].dc>0?0:-1;$('sugg').hidden=false;$('d_descripcion').setAttribute('aria-expanded','true');if(suggSel===0)suggMark();
   }
   $('sugg').addEventListener('mousedown',function(e){
     e.preventDefault();var li=e.target.closest('li');if(li)suggPick(+li.getAttribute('data-i'));
