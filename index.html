@@ -255,6 +255,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M9 21h6"/></svg>
         <span id="micTxt" class="sr">Empezar a dictar</span>
       </button>
+      <button class="btn" id="cmdBtn" type="button" title="Escuchar comandos: decí «ok» para agregar la fila y «mismo» para Mismo médico">🎙 Comandos de voz</button>
       <div class="live" id="live" aria-live="polite">Lo que digas aparece acá.</div>
     </div>
     <div class="msg" id="micMsg"></div>
@@ -839,6 +840,46 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   }
   function stopMic(){wantOn=false;clearCommit();try{rec&&rec.stop()}catch(e){}setMic(false)}
   $('micBtn').addEventListener('click',function(){listening?stopMic():startMic()});
+
+  /* ---------- comandos de voz: «ok» = + Fila, «mismo» = Mismo médico (no dicta campos) ---------- */
+  var cmdRec=null,cmdOn=false,cmdDone={},CK='efarm-cmd';
+  function cmdSet(on){var b=$('cmdBtn');b.classList.toggle('main',on);b.textContent=on?'🎙 Escuchando: «ok» / «mismo»':'🎙 Comandos de voz'}
+  function cmdWord(t){
+    t=norm(t).replace(/[^a-zñ ]/g,' ').replace(/\s+/g,' ').trim();
+    if(/^(ok|okey|okay|oque|oc|o k|okei|oquei)$/.test(t))return 'ok';
+    if(/^(mismo|mismo medico|el mismo|mismo doctor)$/.test(t))return 'mismo';
+    return '';
+  }
+  function cmdRun(w){
+    if(w==='ok'){say($('micMsg'),'«ok»: fila agregada.','ok');$('addBtn').click()}
+    else if(w==='mismo'){
+      if($('repBtn').disabled)say($('micMsg'),'«mismo»: todavía no se puede, agregá primero una fila.','warn');
+      else{say($('micMsg'),'«mismo»: Mismo médico.','ok');$('repBtn').click()}
+    }
+  }
+  function cmdStart(){
+    if(!SR){say($('micMsg'),'Este navegador no tiene reconocimiento de voz. Usá Google Chrome.','warn');return}
+    if(location.protocol==='file:'){say($('micMsg'),'Abrí la página desde su dirección https para usar el micrófono.','bad');return}
+    cmdOn=true;cmdSet(true);try{localStorage.setItem(CK,'1')}catch(e){}
+    cmdRec=new SR();cmdRec.lang='es-AR';cmdRec.continuous=true;cmdRec.interimResults=true;cmdRec.maxAlternatives=3;
+    cmdRec.onresult=function(ev){
+      for(var i=ev.resultIndex;i<ev.results.length;i++){
+        if(cmdDone[i])continue;
+        var r=ev.results[i],w='';
+        for(var a=0;a<r.length&&!w;a++)w=cmdWord(r[a].transcript);
+        if(w){cmdDone[i]=1;cmdRun(w)}
+        else if(r.isFinal)cmdDone[i]=1;
+      }
+    };
+    cmdRec.onerror=function(e){
+      if(e.error==='not-allowed'||e.error==='service-not-allowed'){cmdOn=false;cmdSet(false);try{localStorage.removeItem(CK)}catch(x){}say($('micMsg'),'El navegador no dio permiso al micrófono. Tocá el candado junto a la dirección, permitilo y recargá.','bad')}
+    };
+    cmdRec.onend=function(){cmdDone={};if(cmdOn)setTimeout(function(){if(cmdOn){try{cmdRec.start()}catch(x){}}},150);else cmdSet(false)};
+    try{cmdRec.start();say($('micMsg'),'Escuchando. Decí «ok» para agregar la fila o «mismo» para Mismo médico.','ok')}catch(x){cmdOn=false;cmdSet(false)}
+  }
+  function cmdStop(){cmdOn=false;try{localStorage.removeItem(CK)}catch(e){}try{cmdRec&&cmdRec.stop()}catch(e){}cmdSet(false);say($('micMsg'),'')}
+  $('cmdBtn').addEventListener('click',function(){cmdOn?cmdStop():cmdStart()});
+  try{if(localStorage.getItem(CK)==='1')setTimeout(cmdStart,600)}catch(e){}
 
   /* ---------- enviar y guardar en Google Sheets ---------- */
   $('sendBtn').addEventListener('click',async function(){
