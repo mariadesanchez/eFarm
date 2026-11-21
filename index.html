@@ -909,6 +909,14 @@ td.act .sel{margin:0 6px;vertical-align:middle}
       say($('sendMsg'),'¡Guardado Exitoso!','ok');
       setTimeout(function(){if($('sendMsg').textContent==='¡Guardado Exitoso!')say($('sendMsg'),'')},3000);
       idTouched=false;syncStart();
+      /* terminado el envío, la fecha pasa al día siguiente */
+      var fe=$('d_fecha'),fm=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(fe.value.trim());
+      if(fm&&validDate(fe.value.trim())){
+        var nd=new Date(+fm[3],+fm[2]-1,+fm[1]+1),p=function(n){return (n<10?'0':'')+n};
+        fe.value=p(nd.getDate())+'/'+p(nd.getMonth()+1)+'/'+nd.getFullYear();
+        if(state.lockDate)saveLock();
+        syncLock();
+      }
     }catch(e){
       say($('sendMsg'),'No se pudo guardar ('+(e&&e.message||'error')+'). Los datos siguen acá. Revisá la hoja antes de reintentar para no duplicar filas.','bad');
       btn.disabled=!state.rows.length;
