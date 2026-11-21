@@ -152,7 +152,7 @@ function sheetsFor_(tab) {
   return res;
 }
 
-// último Nº usado: en la pestaña pedida; si está vacía, en los meses anteriores y por último en "datos"
+// último Nº usado: en la pestaña pedida; si no tiene ninguno, en los meses anteriores y por último en "datos"
 function lastIdFor_(tab) {
   var name = tabName_(tab), order = [];
   var mi = MESES.indexOf(name);
@@ -161,8 +161,12 @@ function lastIdFor_(tab) {
   for (var k = 0; k < order.length; k++) {
     var sh = sheetByName_(order[k]);
     if (!sh || sh.getLastRow() < 2) continue;
-    var v = sh.getRange(sh.getLastRow(), 1).getValue();
-    if (v !== '' && v != null && !isNaN(Number(v))) return v;
+    /* último Nº de la columna A (si las filas de abajo no tienen número, se toma la última que sí lo tiene) */
+    var col = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+    for (var r = col.length - 1; r >= 0; r--) {
+      var v = col[r][0];
+      if (v !== '' && v != null && !isNaN(Number(v))) return v;
+    }
   }
   return null;
 }

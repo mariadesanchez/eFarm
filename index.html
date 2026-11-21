@@ -341,7 +341,7 @@ td.act .sel{margin:0 6px;vertical-align:middle}
   function load(){try{var s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&Array.isArray(s.rows))state=s}catch(e){}}
   function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
   var MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  function numera(){return mesTab()==='Marzo'}
+  function numera(){return true}   /* todos los meses llevan Nº correlativo */
   function mesTab(){var v=document.getElementById('d_mes');return v&&v.value?v.value:MESES[new Date().getMonth()]}
   function say(el,t,c){el.textContent=t||'';el.className=el.className.replace(/\b(warn|bad|ok)\b/g,'').trim()+(c?' '+c:'')}
   function pad(n){return (n<10?'0':'')+n}
@@ -525,7 +525,6 @@ td.act .sel{margin:0 6px;vertical-align:middle}
 
   /* ---------- id y tabla ---------- */
   function nextId(){
-    if(!numera())return '';   /* por ahora solo Marzo lleva Nº correlativo; el resto se numera más adelante */
     if(state.rows.length){var n=parseInt(state.rows[state.rows.length-1].id,10);if(!isNaN(n))return String(n+1)}
     return state.start||'';
   }
